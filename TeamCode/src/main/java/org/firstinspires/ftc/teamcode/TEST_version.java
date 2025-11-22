@@ -5,24 +5,28 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import java.lang.Math;
 
-import com.qualcomm.hardware.rev.RevIMU;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
+import com.qualcomm.hardware.bosch.BNO055IMU;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-
+import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 
 @TeleOp(name="TEST_version")
 public class TEST_version extends LinearOpMode {
     @Override
     public void runOpMode() {
-        RevIMU imu = hardwareMap.get(RevIMU.class, "imu");
-        imu.initialize();
+        BNO055IMU imu;
+        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
+        parameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
+        imu.initialize(parameters);
 
         waitForStart();
 
         while(opModeIsActive()) {
 
-            YawPitchRollAngles angles = imu.getRobotYawPitchRollAngles();
-            double yaw = angles.getYaw(AngleUnit.DEGREES);
+            Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+            double yaw = angles.firstAngle;
 
             double x = gamepad1.left_stick_x;
             double y = -gamepad1.left_stick_y;
