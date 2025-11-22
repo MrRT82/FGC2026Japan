@@ -27,12 +27,12 @@ public class TEST_version extends LinearOpMode {
             double x = gamepad1.left_stick_x;
             double y = -gamepad1.left_stick_y;
 
-            double angleRad = Math.atan2(y, x);
-            double angleDeg = Math.toDegrees(angleRad);
+            double angle = Math.atan2(y, x);
+            double controller_angle = Math.toDegrees(angle);
             double power = Math.hypot(x, y);
 
             telemetry.addData("IMU",yaw);
-            telemetry.addData("Controller角度",angleDeg);
+            telemetry.addData("Controller角度",controller_angle);
             telemetry.addData("倒し度合い",power);
             telemetry.update();
 
