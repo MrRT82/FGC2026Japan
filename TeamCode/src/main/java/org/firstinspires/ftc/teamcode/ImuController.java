@@ -10,14 +10,16 @@ public class ImuController {
     private final DcMotorEx leftMotor;
     private final DcMotorEx rightMotor;
 
+    double output = 0;
+
     // ===== PIDゲイン =====
-    public double kp = 0.01;
+    public double kp = 0.001;
     public double ki = 0.0;
-    public double kd = 0.0;
+    public double kd = 0.000;
 
     // ===== 定数 =====
     private static final double dt           = 0.02;
-    private static final double STOP_THRESH  = 3.0;
+    private static final double STOP_THRESH  = 10.0;
     private static final double INTEGRAL_MAX = 1.0;
 
     // ===== 状態 =====
@@ -66,7 +68,7 @@ public class ImuController {
 
     /** 現在のヨー角を取得（度）*/
     public double getHeading() {
-        return imu.getRobotYawPitchRollAngles().getRoll(AngleUnit.DEGREES);
+        return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
     }
 
     /** 目標に到達しているか */
@@ -83,8 +85,8 @@ public class ImuController {
 
         // ===== 到達判定 =====
         if (Math.abs(error) < STOP_THRESH) {
-            leftMotor.setPower(0);
-            rightMotor.setPower(0);
+            leftMotor.setVelocity(0);
+            rightMotor.setVelocity(0);
             integral  = 0.0;
             prevError = 0.0;
             isRunning = false;
@@ -95,11 +97,11 @@ public class ImuController {
         integral += error * dt;
         integral  = Math.max(-INTEGRAL_MAX, Math.min(INTEGRAL_MAX, integral));
         double deriv  = (error - prevError) / dt;
-        double output = kp * error + ki * integral + kd * deriv;
+        output = kp * error + ki * integral + kd * deriv;
         output = Math.max(-1.0, Math.min(1.0, output));
 
-        leftMotor.setPower( output);
-        rightMotor.setPower(-output);
+        leftMotor.setVelocity( output * DriveController.maxSpeed);
+        rightMotor.setVelocity(-output * DriveController.maxSpeed);
 
         prevError = error;
     }

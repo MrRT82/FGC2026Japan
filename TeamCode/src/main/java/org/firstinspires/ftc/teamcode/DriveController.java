@@ -4,14 +4,13 @@ public class DriveController {
     public RobotHardware hardware;
 
     // ----- ドライブ固有定数 -----
-    public static final double maxSpeed    = 5000;
+    public static final double maxSpeed             = 5000;
     public static final double DRIVE_CORRECTION_GAIN = 0.05;
     public static final double DRIVE_INPUT_EXPONENT  = 1.5;
     public static final double BRAKE_STRENGTH        = 0.2;
     public static final double JOYSTICK_DEADZONE     = 0.05;
     public static final double STOP_THRESHOLD        = 30.0;
     public static final double TURN_NORMAL           = 0.7;
-    public static final double ALIGN_KP              = 0.001;
 
     public DriveController(RobotHardware hr) {
         hardware = hr;
@@ -19,7 +18,7 @@ public class DriveController {
 
     public void driveNormal(double forwardRaw, double turnRaw) {
         double forward = applyInputCurve(forwardRaw, DRIVE_INPUT_EXPONENT);
-        double turn    = -applyInputCurve(turnRaw,    DRIVE_INPUT_EXPONENT);
+        double turn    = -applyInputCurve(turnRaw,   DRIVE_INPUT_EXPONENT);
 
         if (Math.abs(forwardRaw) < JOYSTICK_DEADZONE &&
                 Math.abs(turnRaw)    < JOYSTICK_DEADZONE) {
@@ -31,7 +30,6 @@ public class DriveController {
             if (avgVel > STOP_THRESHOLD) {
                 double leftTarget  = -Math.signum(leftVel)  * Math.abs(leftVel)  * BRAKE_STRENGTH;
                 double rightTarget = -Math.signum(rightVel) * Math.abs(rightVel) * BRAKE_STRENGTH;
-
                 hardware.leftMotor.setVelocity(leftTarget);
                 hardware.rightMotor.setVelocity(rightTarget);
             } else {
@@ -43,9 +41,19 @@ public class DriveController {
             double leftVelTarget  = (forward - TURN_NORMAL * turn) * maxSpeed;
             double rightVelTarget = (forward + TURN_NORMAL * turn) * maxSpeed;
 
-            double velError = hardware.leftMotor.getVelocity() - hardware.rightMotor.getVelocity();
-            leftVelTarget  -= velError * DRIVE_CORRECTION_GAIN;
-            rightVelTarget += velError * DRIVE_CORRECTION_GAIN;
+            // ===== 正規化（速度差の比率を保ったままスケールダウン）=====
+            double maxVal = Math.max(Math.abs(leftVelTarget), Math.abs(rightVelTarget));
+            if (maxVal > maxSpeed) {
+                leftVelTarget  = leftVelTarget  / maxVal * maxSpeed;
+                rightVelTarget = rightVelTarget / maxVal * maxSpeed;
+            }
+
+            // ===== 直進時のみ補正（旋回中は補正しない）=====
+            if (Math.abs(turnRaw) < JOYSTICK_DEADZONE) {
+                double velError = hardware.leftMotor.getVelocity() - hardware.rightMotor.getVelocity();
+                leftVelTarget  -= velError * DRIVE_CORRECTION_GAIN;
+                rightVelTarget += velError * DRIVE_CORRECTION_GAIN;
+            }
 
             hardware.leftMotor.setVelocity(leftVelTarget);
             hardware.rightMotor.setVelocity(rightVelTarget);

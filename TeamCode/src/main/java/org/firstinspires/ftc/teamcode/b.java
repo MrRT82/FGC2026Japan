@@ -47,16 +47,16 @@ public class RobotHardware {
         leftUp_Servo = hardwareMap.get(Servo.class,"leftUp");
         leftDown_Servo = hardwareMap.get(Servo.class,"leftDown");
 
-        leftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        rightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        leftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         extendMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
-        leftMotor.setDirection(DcMotor.Direction.REVERSE);
-        rightMotor.setDirection(DcMotor.Direction.FORWARD);
-        left_shooterMotor.setDirection(DcMotor.Direction.FORWARD);
-        right_shooterMotor.setDirection(DcMotor.Direction.REVERSE);
-        intakeMotor.setDirection(DcMotorEx.Direction.REVERSE);
+        leftMotor.setDirection(DcMotor.Direction.FORWARD);
+        rightMotor.setDirection(DcMotor.Direction.REVERSE);
+        left_shooterMotor.setDirection(DcMotor.Direction.REVERSE);
+        right_shooterMotor.setDirection(DcMotor.Direction.FORWARD);
+        intakeMotor.setDirection(DcMotorEx.Direction.FORWARD);
         extendMotor.setDirection(DcMotor.Direction.FORWARD);
         rightUp_Servo.setDirection(Servo.Direction.FORWARD);
         rightDown_Servo.setDirection(Servo.Direction.FORWARD);

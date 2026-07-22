@@ -5,9 +5,10 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 public class ShooterController
 {
     public double targetSpeed = 0.0;
-    public double kp = 0.0081;
-    public double ki = 0.006302;
-    public double kd = 0.000088;
+    public double kp = 0.004;
+    public double ki = 0.00;
+    public double kd = 0.00007;
+    public double kf = 0.0005;
     private double integral = 0;
     private double prevError = 0;
     private static final double dt = 0.02;
@@ -44,7 +45,7 @@ public class ShooterController
 
         integral += error * dt;
         double deriv = (error - prevError) / dt;
-        double output = kp * error + ki * integral + kd * deriv;
+        double output = kp * error + ki * integral + kd * deriv + kf * error;
 
         output = Math.max(-1.0, Math.min(1.0, output));
 

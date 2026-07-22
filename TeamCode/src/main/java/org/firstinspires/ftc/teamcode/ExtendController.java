@@ -10,13 +10,13 @@ public class ExtendController {
     double pote_offset = 20;
     double pote_Up = 70;
     double pote_Down = 0;
-    double targetAngle = 17;
+    double targetAngle = 70;
     double current;
     double dt = 0.02;
     double integral = 0;
     double kp = 0.02;
-    double ki = 0.002;
-    double kd = 0.001;
+    double ki = 0.005;
+    double kd = 0.00;
     double output;
     double prevError = 0;
 
@@ -54,6 +54,7 @@ public class ExtendController {
         double error = targetAngle - current;
 
         integral += error * dt;
+        integral = Math.min(0.5, integral);
         double deriv = (error - prevError) / dt;
 
         // 重力補償 (F項): 実際の物理的な重心角度(angle)を使って cos を計算
