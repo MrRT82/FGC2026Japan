@@ -14,8 +14,8 @@ public class ExtendController {
     double current;
     double dt = 0.02;
     double integral = 0;
-    double kp = 0.02;
-    double ki = 0.005;
+    double kp = 0.001;
+    double ki = 0.00;
     double kd = 0.00;
     double output;
     double prevError = 0;
@@ -54,13 +54,11 @@ public class ExtendController {
         double error = targetAngle - current;
 
         integral += error * dt;
-        integral = Math.min(0.5, integral);
+        integral = Math.min(0.5, Math.max(integral,-0.5));
         double deriv = (error - prevError) / dt;
 
-        // 重力補償 (F項): 実際の物理的な重心角度(angle)を使って cos を計算
-        double feedforward = (m * g * r * Math.cos(Math.toRadians(angle))) / 3.2;
 
-        output = kp * error + ki * integral + kd * deriv + feedforward;
+        output = kp * error + ki * integral + kd * deriv;
 
         output = Math.max(-1.0, Math.min(1.0, output));
 

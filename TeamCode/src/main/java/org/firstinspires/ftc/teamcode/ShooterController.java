@@ -2,56 +2,81 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 
-public class ShooterController
-{
+public class ShooterController {
     public double targetSpeed = 0.0;
-    public double kp = 0.004;
-    public double ki = 0.00;
-    public double kd = 0.00007;
-    public double kf = 0.0005;
-    private double integral = 0;
-    private double prevError = 0;
+
+    // 速度型PIDのゲイン
+    public double kp = 0.001;
+    public double ki = 0.0001;
+    public double kd = 0.00005;
+    public double kf = 0.0005; // Feedforward 係数
+
+    private double prevError = 0.0;     // e(k-1)
+    private double prevPrevError = 0.0; // e(k-2)
+    private double currentOutput = 0.0; // 現在の出力パワー u(k-1)
+
     private static final double dt = 0.02;
     private static final double maxSpeed = 1800;
-    public RobotHardware hardware;
 
     public DcMotorEx leftShooter;
     public DcMotorEx rightShooter;
 
-    public ShooterController(RobotHardware hr){
+    public ShooterController(RobotHardware hr) {
         leftShooter = hr.left_shooterMotor;
         rightShooter = hr.right_shooterMotor;
     }
+
     public void setSpeed(double speed) {
         targetSpeed = speed;
-        integral = 0;
-        prevError = 0;
+        if (speed == 0) {
+            resetPID();
+        }
     }
-    public void speedUp(){
-        targetSpeed += 100;
-        targetSpeed = Math.min(maxSpeed,targetSpeed);
-        integral = 0;
-        prevError = 0;
+
+    public void speedUp() {
+        setSpeed(Math.min(maxSpeed, targetSpeed + 100));
     }
-    public void speedDown(){
-        targetSpeed -= 100;
-        targetSpeed = Math.max(-maxSpeed,targetSpeed);
-        integral = 0;
-        prevError = 0;
+
+    public void speedDown() {
+        setSpeed(Math.max(-maxSpeed, targetSpeed - 100));
     }
-    public void shooter_loop(){
-        double current = (leftShooter.getVelocity() + rightShooter.getVelocity()) / 2;
+
+    private void resetPID() {
+        prevError = 0.0;
+        prevPrevError = 0.0;
+        currentOutput = 0.0;
+    }
+
+    public void shooter_loop() {
+        targetSpeed = Math.max(0, targetSpeed);
+
+        if (targetSpeed == 0) {
+            leftShooter.setPower(0);
+            rightShooter.setPower(0);
+            resetPID();
+            return;
+        }
+
+        double current = (leftShooter.getVelocity() + rightShooter.getVelocity()) / 2.0;
         double error = targetSpeed - current;
 
-        integral += error * dt;
-        double deriv = (error - prevError) / dt;
-        double output = kp * error + ki * integral + kd * deriv + kf * error;
+        double deltaP = error - prevError;
 
-        output = Math.max(-1.0, Math.min(1.0, output));
+        double deltaI = error * dt;
 
-        leftShooter.setPower(output);
-        rightShooter.setPower(output);
+        double deltaD = (error - 2.0 * prevError + prevPrevError) / dt;
 
+        double deltaOutput = (kp * deltaP) + (ki * deltaI) + (kd * deltaD);
+
+        double ff = targetSpeed * kf;
+        currentOutput += deltaOutput;
+
+        double finalOutput = Math.max(-1.0, Math.min(1.0, currentOutput + ff));
+
+        leftShooter.setPower(finalOutput);
+        rightShooter.setPower(finalOutput);
+
+        prevPrevError = prevError;
         prevError = error;
     }
 }

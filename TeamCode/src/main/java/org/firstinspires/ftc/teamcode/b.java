@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 
 public class RobotHardware {
     public DcMotorEx leftMotor;
@@ -29,6 +30,9 @@ public class RobotHardware {
 
     public IMU imu;
 
+    public TouchSensor touchSensor;
+    public TouchSensor limitSwitch;
+
     public void init(HardwareMap hardwareMap) {
         leftMotor = hardwareMap.get(DcMotorEx.class, "leftmotor");
         rightMotor = hardwareMap.get(DcMotorEx.class, "rightmotor");
@@ -39,6 +43,8 @@ public class RobotHardware {
         feedMotor = hardwareMap.get(DcMotor.class, "feed");
         climbMotor = hardwareMap.get(DcMotorEx.class,"climb");
         potentiometer = hardwareMap.get(AnalogInput.class,"potentiometer");
+        touchSensor  = hardwareMap.get(TouchSensor.class, "touch_sensor");
+        limitSwitch  = hardwareMap.get(TouchSensor.class, "limit_switch");
 
         imu = hardwareMap.get(IMU.class, "imu");
 

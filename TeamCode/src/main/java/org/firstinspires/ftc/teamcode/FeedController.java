@@ -14,4 +14,7 @@ public class FeedController
     public void Feed_turn_left(){
         feed.setPower(-1);
     }
+    public void Feed_turn_stop(){
+        feed.setPower(0);
+    }
 }

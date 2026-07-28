@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 
 public class ClimbController {
 
@@ -11,6 +12,8 @@ public class ClimbController {
     public Servo rightDown;
     public Servo leftUp;
     public Servo leftDown;
+    public TouchSensor upperSensor;
+    public TouchSensor bottomSensor;
 
     public double targetSpeed = 0.0;
     public double kp = 0.0081;
@@ -31,6 +34,8 @@ public class ClimbController {
         leftUp = hr.leftUp_Servo;
         leftDown = hr.leftDown_Servo;
         Climb_Roller = hr.climbMotor;
+        upperSensor = hr.touchSensor;
+        bottomSensor = hr.limitSwitch;
     }
     public void climbUp(){
         rightUp.setPosition(1.0);
@@ -51,6 +56,12 @@ public class ClimbController {
         leftDown.setPosition(0.5);
     }
 
+    public boolean isUpperLimit(){
+        return upperSensor.isPressed();
+    }
+    public boolean isBottomLimit(){
+        return bottomSensor.isPressed();
+    }
 
     public void Climb_Roller_Forward() {
         Climb_Roller.setPower(1.0);
@@ -58,33 +69,5 @@ public class ClimbController {
 
     public void Climb_Roller_Reverse() {
         Climb_Roller.setPower(-1.0);
-    }
-
-    public void setSpeed(double speed) {
-        targetSpeed = speed;
-        integral = 0;
-        prevError = 0;
-    }
-    public void speedUp(){
-        targetSpeed += 100;
-        targetSpeed = Math.min(maxSpeed,targetSpeed);
-        integral = 0;
-        prevError = 0;
-    }
-    public void speedDown(){
-        targetSpeed -= 100;
-        targetSpeed = Math.max(-maxSpeed,targetSpeed);
-        integral = 0;
-        prevError = 0;
-    }
-    public void shooter_loop(){
-        double current = Climb_Roller.getVelocity();
-        double error = targetSpeed - current;
-        integral += error * dt;
-        double deriv = (error - prevError) / dt;
-        double output = kp * error + ki * integral + kd * deriv;
-        output = Math.max(-1.0, Math.min(1.0, output));
-        Climb_Roller.setPower(output);
-        prevError = error;
     }
 }

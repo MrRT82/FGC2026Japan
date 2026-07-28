@@ -16,4 +16,7 @@ public class IntakeController {
     public void Intake_Reverse() {
         Intake.setPower(-1.0);
     }
+    public void Intake_Stop(){
+        Intake.setPower(0);
+    }
 }

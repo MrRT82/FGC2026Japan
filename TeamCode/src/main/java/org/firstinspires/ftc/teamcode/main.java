@@ -4,8 +4,8 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name="MainClass", group="Test")
-public class MainClass extends LinearOpMode {
+@TeleOp(name="MainClass_Blue", group="Test")
+public class MainClass_Blue extends LinearOpMode {
 
     private RobotHardware hardware;
     private DriveController driveController;
@@ -34,13 +34,14 @@ public class MainClass extends LinearOpMode {
     int climbEnum = 0;
     boolean timerRunning = false;
     boolean isReverse = false;
-
     double shootSpeed = 800;
+    int i = 0;
+    int prevLoop = 2;//ボタン判定の緩さ加減
+
 
     @Override
     public void runOpMode() {
 
-        // ===== 初期化 =====
         hardware = new RobotHardware();
         hardware.init(hardwareMap);
         motorLogger = new MotorLogger(hardware, hardwareMap);
@@ -62,7 +63,6 @@ public class MainClass extends LinearOpMode {
 
         imuController.reset();
 
-        // ===== メインループ =====
         while (opModeIsActive()) {
             double forwardRaw = driveController.applyDeadzone(-gamepad1.left_stick_y);
             double turnRaw = driveController.applyDeadzone(gamepad1.right_stick_x);
@@ -70,51 +70,39 @@ public class MainClass extends LinearOpMode {
             driveController.driveNormal(forwardRaw, turnRaw);
 
             extendController.extend_loop();
-            shooterController.shooter_loop();
 
             if (isStart) {
-
-                // ===== 1. インテイクのスタック（詰まり）検知処理 =====
                 double currentVelocity = Math.abs(intakeController.Intake.getVelocity());
-
-                // 逆転中・シューターモード中以外で、速度が200未満（詰まり発生）
                 if (!isReverse && !isShootMode && currentVelocity < 200) {
                     if (!timerRunning) {
                         timer.reset();
                         timerRunning = true;
-                    } else if (timer.milliseconds() > 1000) {
-                        // 0.5秒間詰まりが続いたら自動逆転モードON！
+                    } else if (timer.milliseconds() > 1500) {
                         isReverse = true;
                         timerRunning = false;
-                        timer.reset(); // 逆転時間計測用にリセット
+                        timer.reset();
                     }
                 } else if (!isReverse) {
-                    // 詰まりが解消されていればタイマーを初期化
                     timerRunning = false;
                 }
-
-                // ===== 2. モーターの出力指示（自動逆転 vs 手動/通常） =====
                 if (isReverse) {
-                    // 【自動逆転動作】0.5秒間だけ逆転
                     if (timer.milliseconds() < 750) {
                         intakeController.Intake_Reverse();
                     } else {
-                        // 0.5秒経ったら自動逆転を終了
                         isReverse = false;
                     }
                 } else {
-                    // 【通常動作 / 手動操作】
-                    if (gamepad1.b) { // Bボタンで手動逆転
+
+                    if (gamepad1.b) {
                         intakeController.Intake_Reverse();
                         extendController.extendUp();
                         feedController.Feed_turn_left();
-                    } else if (!isShootMode) { // 通常の正転
+                    } else if (!isShootMode) {
                         intakeController.Intake_Forward();
                         feedController.Feed_turn_right();
                     }
                 }
 
-                // ===== 3. その他の機能 (Shooter, Extend, Climb) =====
                 if (gamepad1.left_bumper && !prevLeftBump) {
                     extendController.extendDown();
                 }
@@ -127,12 +115,13 @@ public class MainClass extends LinearOpMode {
 
                 if (isShootMode) {
                     imuController.update();
+                    shooterController.shooter_loop();
 
                     if(gamepad1.left_stick_button || gamepad1.right_stick_button){
                         isShootMode = false;
                     }
 
-                    if (gamepad1.right_bumper && Math.abs((shooterController.leftShooter.getVelocity() + shooterController.rightShooter.getVelocity()) / 2 - shootSpeed) <= 70) {
+                    if (gamepad1.right_bumper) {
                         feedController.Feed_turn_left();
                         extendController.extendUp();
                         wasShoot = true;
@@ -143,12 +132,16 @@ public class MainClass extends LinearOpMode {
                     }
                 }
 
-                // クライム処理
                 if (gamepad1.left_trigger > 0.05 && prevLeftT < 0.05) {
                     climbEnum += 1;
                     if (climbEnum >= 3) {
                         climbEnum = 0;
                     }
+                }
+                if(climbController.isUpperLimit()){
+                    climbEnum = 2;
+                }else if(climbController.isBottomLimit()){
+                    climbEnum = 1;
                 }
                 switch (climbEnum) {
                     case 0:
@@ -162,7 +155,6 @@ public class MainClass extends LinearOpMode {
                         break;
                 }
 
-                // ===== 4. Telemetry & 変数更新 =====
                 int cS = (int) (shooterController.leftShooter.getVelocity() + shooterController.rightShooter.getVelocity()) / 2;
 
                 telemetry.addData("目標角度", extendController.targetAngle);
@@ -178,16 +170,23 @@ public class MainClass extends LinearOpMode {
 
                 motorLogger.update();
 
-                prevDown_2 = gamepad2.dpad_down;
-                prevUp_2 = gamepad2.dpad_up;
-                prevLeft = gamepad1.dpad_left;
-                prevRight = gamepad1.dpad_right;
-                prevRight_2 = gamepad2.dpad_right;
-                prevLeft_2 = gamepad2.dpad_left;
-                prevLeftBump = gamepad1.left_bumper;
-                prevLeftT = gamepad1.left_trigger;
+                i ++;
+                if(i <= prevLoop){
+                    i = 0;
+                    prevDown_2 = gamepad2.dpad_down;
+                    prevUp_2 = gamepad2.dpad_up;
+                    prevLeft = gamepad1.dpad_left;
+                    prevRight = gamepad1.dpad_right;
+                    prevRight_2 = gamepad2.dpad_right;
+                    prevLeft_2 = gamepad2.dpad_left;
+                    prevLeftBump = gamepad1.left_bumper;
+                    prevLeftT = gamepad1.left_trigger;
+
+                }
 
             } else {
+                telemetry.addData("展開出力",extendController.output);
+                telemetry.update();
                 if (Math.abs(gamepad1.left_stick_y) > 0.05) {
                     isStart = true;
                 }
