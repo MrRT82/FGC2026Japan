@@ -6,25 +6,14 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.TouchSensor;
 
 public class ClimbController {
-
-    public DcMotor climb;
     public Servo rightUp;
     public Servo rightDown;
     public Servo leftUp;
     public Servo leftDown;
-    public TouchSensor upperSensor;
+    public Servo rightLock;
+    public Servo leftLock;
     public TouchSensor bottomSensor;
-
-    public double targetSpeed = 0.0;
-    public double kp = 0.0081;
-    public double ki = 0.006302;
-    public double kd = 0.000088;
-    private double integral = 0;
-    private double prevError = 0;
-    private static final double dt = 0.02;
-    private static final double maxSpeed = 1800;
     public RobotHardware hardware;
-
 
     private DcMotorEx Climb_Roller;
 
@@ -33,9 +22,14 @@ public class ClimbController {
         rightDown = hr.rightDown_Servo;
         leftUp = hr.leftUp_Servo;
         leftDown = hr.leftDown_Servo;
+        rightLock = hr.rightLock_Servo;
+        leftLock = hr.leftLock_Servo;
         Climb_Roller = hr.climbMotor;
-        upperSensor = hr.touchSensor;
         bottomSensor = hr.limitSwitch;
+    }
+    public void climbOpen(){
+        rightLock.setPosition(0.5);//あとでなおす
+        leftLock.setPosition(0.5);//あとでなおす
     }
     public void climbUp(){
         rightUp.setPosition(1.0);
@@ -54,10 +48,6 @@ public class ClimbController {
         rightDown.setPosition(0.5);
         leftUp.setPosition(0.5);
         leftDown.setPosition(0.5);
-    }
-
-    public boolean isUpperLimit(){
-        return upperSensor.isPressed();
     }
     public boolean isBottomLimit(){
         return bottomSensor.isPressed();

@@ -100,10 +100,13 @@ public class ImuController {
         output = kp * error + ki * integral + kd * deriv;
         output = Math.max(-1.0, Math.min(1.0, output));
 
-        leftMotor.setVelocity( output * DriveController.maxSpeed);
-        rightMotor.setVelocity(-output * DriveController.maxSpeed);
+        leftMotor.setPower(output);
+        rightMotor.setPower(-output);
 
         prevError = error;
+    }
+    public double getTarget() {
+        return targetHeading;
     }
 
     // =============================================
