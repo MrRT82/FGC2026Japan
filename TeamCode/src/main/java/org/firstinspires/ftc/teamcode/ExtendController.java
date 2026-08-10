@@ -14,7 +14,7 @@ public class ExtendController {
     double current;
     double dt = 0.02;
     double integral = 0;
-    double kp = 0.002;
+    double kp = 0.001;
     double ki = 0.00;
     double kd = 0.00;
     double output;
@@ -31,8 +31,8 @@ public class ExtendController {
     private static final double STUCK_RANGE_MIN = 10.0;  // 検知範囲（下限）
     private static final double STUCK_RANGE_MAX = 60.0;  // 検知範囲（上限）
     private static final double STUCK_THRESHOLD = 0.5;   // 変化なし判定しきい値（度）
-    private static final long   STUCK_TIME_MS   = 500;   // 詰まり判定時間（ms）
-    private static final long   REVERSE_TIME_MS = 500;   // 逆転時間（ms）
+    private static final long   STUCK_TIME_MS   = 200;   // 詰まり判定時間（ms）
+    private static final long   REVERSE_TIME_MS = 300;   // 逆転時間（ms）
 
     private double  prevPoteValue     = 0.0;
     private long    poteStuckStart    = 0;
@@ -63,7 +63,7 @@ public class ExtendController {
         // ===== 詰まり逆転中 =====
         if (isStuck) {
             if (System.currentTimeMillis() - stuckReverseStart < REVERSE_TIME_MS) {
-                extend.setPower(0.4);
+                extend.setPower(0.2);
                 integral  = 0;
                 prevError = 0;
                 return;

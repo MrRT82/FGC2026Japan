@@ -13,13 +13,14 @@ public class ImuController {
     double output = 0;
 
     // ===== PIDゲイン =====
-    public double kp = 0.001;
-    public double ki = 0.0;
-    public double kd = 0.000;
+    public double kp = 0.00590;
+    public double ki = 0.0001;
+    public double kd = 0.0005;
+    public double kf = 0.3;
 
     // ===== 定数 =====
     private static final double dt           = 0.02;
-    private static final double STOP_THRESH  = 10.0;
+    private static final double STOP_THRESH  = 3.0;
     private static final double INTEGRAL_MAX = 1.0;
 
     // ===== 状態 =====
@@ -27,6 +28,8 @@ public class ImuController {
     private double integral      = 0.0;
     private double prevError     = 0.0;
     private boolean isRunning    = false;
+    private int ffCount = 0;
+    private static final int FF_LOOP = 15;
 
     // =============================================
     // コンストラクタ（RobotHardware版）
@@ -64,6 +67,7 @@ public class ImuController {
         integral      = 0.0;
         prevError     = 0.0;
         isRunning     = true;
+        ffCount = 0;
     }
 
     /** 現在のヨー角を取得（度）*/
@@ -93,15 +97,21 @@ public class ImuController {
             return;
         }
 
-        // ===== PID =====
+        // ===== PI + F =====
         integral += error * dt;
         integral  = Math.max(-INTEGRAL_MAX, Math.min(INTEGRAL_MAX, integral));
-        double deriv  = (error - prevError) / dt;
-        output = kp * error + ki * integral + kd * deriv;
+        double deriv  = (error - prevError) / dt;   //Dなのでいらない
+
+        double ff = 0.0;
+        if (ffCount < FF_LOOP) {
+            ff = Math.signum(error) * kf;
+            ffCount++;
+        }
+        output = kp * error + ki * integral + ff;
         output = Math.max(-1.0, Math.min(1.0, output));
 
-        leftMotor.setPower(output);
-        rightMotor.setPower(-output);
+        leftMotor.setPower(-output);
+        rightMotor.setPower(output);
 
         prevError = error;
     }

@@ -26,12 +26,14 @@ public class RobotHardware {
     public Servo rightDown_Servo;
     public Servo leftUp_Servo;
     public Servo leftDown_Servo;
+    public Servo rightLock_Servo;
+    public Servo leftLock_Servo;
     public AnalogInput potentiometer;
 
     public IMU imu;
 
-    public TouchSensor touchSensor;
-    public TouchSensor limitSwitch;
+    public TouchSensor rightTouch;
+    public TouchSensor leftTouch;
 
     public void init(HardwareMap hardwareMap) {
         leftMotor = hardwareMap.get(DcMotorEx.class, "leftmotor");
@@ -43,15 +45,17 @@ public class RobotHardware {
         feedMotor = hardwareMap.get(DcMotor.class, "feed");
         climbMotor = hardwareMap.get(DcMotorEx.class,"climb");
         potentiometer = hardwareMap.get(AnalogInput.class,"potentiometer");
-        touchSensor  = hardwareMap.get(TouchSensor.class, "touch_sensor");
-        limitSwitch  = hardwareMap.get(TouchSensor.class, "limit_switch");
+        leftTouch  = hardwareMap.get(TouchSensor.class, "leftTouch");
+        rightTouch = hardwareMap.get(TouchSensor.class, "rightTouch");
 
         imu = hardwareMap.get(IMU.class, "imu");
 
-        rightUp_Servo = hardwareMap.get(Servo.class,"rightUp");
-        rightDown_Servo = hardwareMap.get(Servo.class,"rightDown");
-        leftUp_Servo = hardwareMap.get(Servo.class,"leftUp");
-        leftDown_Servo = hardwareMap.get(Servo.class,"leftDown");
+        rightUp_Servo = hardwareMap.get(Servo.class,"rightInside");
+        rightDown_Servo = hardwareMap.get(Servo.class,"rightOutside");
+        leftUp_Servo = hardwareMap.get(Servo.class,"leftInside");
+        leftDown_Servo = hardwareMap.get(Servo.class,"leftOutside");
+        rightLock_Servo = hardwareMap.get(Servo.class,"rightLock");
+        leftLock_Servo = hardwareMap.get(Servo.class,"leftLock");
 
         leftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -65,14 +69,18 @@ public class RobotHardware {
         intakeMotor.setDirection(DcMotorEx.Direction.FORWARD);
         extendMotor.setDirection(DcMotor.Direction.FORWARD);
         rightUp_Servo.setDirection(Servo.Direction.FORWARD);
-        rightDown_Servo.setDirection(Servo.Direction.FORWARD);
+        rightDown_Servo.setDirection(Servo.Direction.REVERSE);
         leftUp_Servo.setDirection(Servo.Direction.REVERSE);
-        leftDown_Servo.setDirection(Servo.Direction.REVERSE);
+        leftDown_Servo.setDirection(Servo.Direction.FORWARD);
+        rightLock_Servo.setDirection(Servo.Direction.FORWARD);
+        leftLock_Servo.setDirection(Servo.Direction.REVERSE);
 
         rightUp_Servo.setPosition(0.5);
         rightDown_Servo.setPosition(0.5);
         leftUp_Servo.setPosition(0.5);
         leftDown_Servo.setPosition(0.5);
+        rightLock_Servo.setPosition(0.3);
+        leftLock_Servo.setPosition(0.15);
 
         leftMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);

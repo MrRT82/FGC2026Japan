@@ -9,14 +9,14 @@ public class ShooterController {
     public double kp = 0.001;
     public double ki = 0.0001;
     public double kd = 0.00005;
-    public double kf = 0.0005; // Feedforward 係数
+    public double kf = 0.0006; // Feedforward 係数
 
     private double prevError = 0.0;     // e(k-1)
     private double prevPrevError = 0.0; // e(k-2)
     private double currentOutput = 0.0; // 現在の出力パワー u(k-1)
 
     private static final double dt = 0.02;
-    private static final double maxSpeed = 1800;
+    private static final double maxSpeed = 2000;
 
     public DcMotorEx leftShooter;
     public DcMotorEx rightShooter;
@@ -69,7 +69,7 @@ public class ShooterController {
         double deltaOutput = (kp * deltaP) + (ki * deltaI) + (kd * deltaD);
 
         double ff = targetSpeed * kf;
-        currentOutput += deltaOutput;
+        currentOutput = Math.max(-1.0, Math.min(1.0, currentOutput + deltaOutput));
 
         double finalOutput = Math.max(-1.0, Math.min(1.0, currentOutput + ff));
 

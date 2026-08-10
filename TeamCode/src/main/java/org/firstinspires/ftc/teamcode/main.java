@@ -29,11 +29,15 @@ public class MainClass_Blue extends LinearOpMode {
     boolean wasShoot = false;
     boolean isClimbMode = false;
     int climbEnum = 0;
+    int climbTime = 120;
     boolean timerRunning = false;
     boolean isReverse = false;
-    double shootSpeed = 800;
+    double shootSpeed = 1500;
     int i = 0;
     int prevLoop = 3;
+    double climbTarget = 16; //Blue 16,Red -16
+    double shootTarget = -90; // Blue -90,Red 90
+    double shootTargetB = -30; //Blue -30,Red 60a
 
 
     @Override
@@ -53,6 +57,7 @@ public class MainClass_Blue extends LinearOpMode {
         imuController = new ImuController(hardware);
         ElapsedTime timer = new ElapsedTime();
         ElapsedTime climbTimer = new ElapsedTime();
+        ElapsedTime allTimer = new ElapsedTime();
 
         telemetry.addData("Status", "準備完了");
         telemetry.update();
@@ -70,6 +75,7 @@ public class MainClass_Blue extends LinearOpMode {
             driveController.driveNormal(forwardRaw, turnRaw);
 
             extendController.extend_loop();
+            shooterController.shooter_loop();
 
             if (isStart) {
                 double currentVelocity = Math.abs(intakeController.Intake.getVelocity());
@@ -95,8 +101,8 @@ public class MainClass_Blue extends LinearOpMode {
 
                     if (gamepad1.b) {
                         intakeController.Intake_Reverse();
-                        extendController.extendUp();
                         feedController.Feed_turn_left();
+                        extendController.extendUp();
                     } else if (!isShootMode) {
                         intakeController.Intake_Forward();
                         feedController.Feed_turn_right();
@@ -109,31 +115,35 @@ public class MainClass_Blue extends LinearOpMode {
 
                 if (gamepad1.right_trigger > 0.1 && !isShootMode && !isClimbMode) {
                     isShootMode = true;
-                    imuController.setTarget(90);
+                    imuController.setTarget(shootTarget);
                     shooterController.setSpeed(shootSpeed);
                 }else if(gamepad1.a && !prevA && !isShootMode) {
                     isShootMode = true;
-                    imuController.setTarget(30);
+                    imuController.setTarget(shootTargetB);
                     shooterController.setSpeed(shootSpeed);
                 }
 
                 if(!isShootMode && (gamepad1.dpad_up || gamepad1.dpad_down || gamepad1.dpad_right || gamepad1.dpad_left)){
                     isClimbMode = true;
                 }
-                if(isClimbMode && ((74 <= Angle && Angle <= 180) || (-180 <= Angle && Angle <= -106))){
-                    if(imuController.getTarget() != 164){
-                        imuController.setTarget(164);
+                if(isClimbMode && climbTarget + 90 >= Angle && Angle >= climbTarget - 90){
+                    if(imuController.getTarget() != climbTarget){
+                        imuController.setTarget(climbTarget);
                     }
                     imuController.update();
                 }else if(isClimbMode){
-                    if(imuController.getTarget() != -16)imuController.setTarget(-16);
+                    if(imuController.getTarget() != climbTarget - 180 || imuController.getTarget() != climbTarget + 180){
+                        if(climbTarget > 0){
+                            imuController.setTarget(climbTarget - 180);
+                        }else{
+                            imuController.setTarget(climbTarget + 180);
+                        }
+                    }
                     imuController.update();
                 }
 
                 if (isShootMode) {
                     imuController.update();
-                    shooterController.shooter_loop();
-
                     if (gamepad1.right_bumper) {
                         feedController.Feed_turn_left();
                         extendController.extendUp();
@@ -147,14 +157,25 @@ public class MainClass_Blue extends LinearOpMode {
                 if(gamepad1.left_stick_button || gamepad1.right_stick_button){
                     isShootMode = false;
                     isClimbMode = false;
+                    shooterController.setSpeed(0);
                 }
 
-                if (gamepad1.left_trigger > 0.05 && climbTimer.milliseconds() > 100) {
+                if (gamepad2.left_trigger > 0.05 && climbTimer.milliseconds() > 300) {
                     climbEnum += 1;
                     climbTimer.reset();
                     if (climbEnum > 5) {
                         climbEnum = 2;
                     }
+                }
+                if(gamepad1.left_trigger > 0.05 && climbEnum != 0 && climbTimer.milliseconds() > 300){
+                    climbEnum += 1;
+                    climbTimer.reset();
+                    if(climbEnum > 5){
+                        climbEnum = 2;
+                    }
+                }
+                if(allTimer.seconds() > climbTime && climbEnum == 0){
+                    climbEnum = 1;
                 }
                 switch (climbEnum) {
                     case 0:
@@ -195,6 +216,8 @@ public class MainClass_Blue extends LinearOpMode {
                 telemetry.addData("クライムタイマー",climbTimer.milliseconds());
                 telemetry.addData("ポテンショメーター",extendController.current);
                 telemetry.addData("展開詰まり", extendController.isStuck ? "詰まり" : "正常");
+                telemetry.addData("現在角度",imuController.getHeading());
+                telemetry.addData("目標角度",imuController.getTarget());
                 telemetry.update();
 
                 motorLogger.update();
@@ -208,13 +231,13 @@ public class MainClass_Blue extends LinearOpMode {
                     prevLeft_2 = gamepad2.dpad_left;
                     prevLeftBump = gamepad1.left_bumper;
                     prevA = gamepad1.a;
-                    prevLeftT = gamepad1.left_trigger;
 
                 }
 
             } else {
                 telemetry.addData("展開出力",extendController.output);
                 telemetry.update();
+                allTimer.reset();
                 if (Math.abs(gamepad1.left_stick_y) > 0.05) {
                     isStart = true;
                 }
