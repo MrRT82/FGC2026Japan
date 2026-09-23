@@ -1,23 +1,23 @@
-# 3 号機：OnBot Java
+# 3号機 OnBot Java
 
-専用ブランチ: codex/robot-3
-専用作業フォルダー: github_FGC2026Japan_robot3
-ソース: src/org/firstinspires/ftc/teamcode/
+専用ブランチ: `codex/robot-3`
+専用作業フォルダー: `github_FGC2026Japan_robot3`
+ソース: `src/org/firstinspires/ftc/teamcode/`
+対象Control Hub: `1f4562e7e0deafa4`
 
-2026-09-23に共通ブランチ codex/robots-3-4 のコミット 808316d から分離。
-22個のJavaファイルは共通開始点と内容を変えずに移動した。
-他号機とは作業ツリー・ブランチ・ソースパスを分離しており、変更は自動同期しない。
-開発ルールはリポジトリ直下とこのディレクトリの AGENTS.md を参照。
+2026-09-23にユーザーが現在接続中のHubを3号機として指定。端末のシリアルを照合済み。
+3号機と4号機は別々のHubを使用する。`dddad6c23c4eeb3b` の号機対応は未確定。
+開発ルールはリポジトリ直下と本ディレクトリのAGENTS.mdを参照。
 
-対象Hubは未指定。ユーザーが3号機のシリアルを指定するまでHubへ書き込まない。4号機Hub `dddad6c23c4eeb3b` には書き込まない。
+## 3つのメインOpMode
 
-引き継ぎ時の共通ソースはRobot Controller 11.1の新Hub上でビルド成功と記録されている。
-分離後の実機動作は未検証。機器構成の最新状態は接続時に確認する。
-既存Android Studio用TeamCodeとは独立しており、このソースはGradleビルドに含まれない。
+| 表示名 | グループ | 内容 |
+|---|---|---|
+| MainClass_Blue | 0_MATCH | 計測追加前の通常Blue |
+| MainClass_Red | 0_MATCH | 計測追加前の通常Red |
+| MainClass_Blue_Timing | 1_DIAG | Blueのセンサー取得時間計測版 |
 
-## センサー取得時間の計測
-
-3号機のBlue/Redへ計測を追加。計測用クラス2個を含む現在のOnBot Javaソースは24ファイル。
-取得頻度・制御設定を維持したまま、既存CSVの末尾に取得回数・合計時間・最大時間・例外回数を記録する。
-計測項目、解析方法、解釈上の注意は [TIMING.md](TIMING.md) を参照。
-PC上のSDK JARによるコンパイルとテストを実施。Hubへの転送・実機測定は未実施。
+通常22ファイルは計測前のコミット `9157b47` と完全一致する。計測専用21ファイルはtimingパッケージへ隔離し、通常版に計測処理を追加しない。
+計測項目と解析方法は [TIMING.md](TIMING.md) を参照。
+既存Android Studio用TeamCodeとは独立しており、これらはGradleビルド対象外。
+Hubへの反映結果は [DEPLOYMENT.md](DEPLOYMENT.md) に記録する。

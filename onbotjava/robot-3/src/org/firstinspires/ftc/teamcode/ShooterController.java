@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
-// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
+// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
+// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -125,10 +125,7 @@ public class ShooterController {
 
     private CachedPower leftOut, rightOut;
 
-    private final SensorReads reads;
-
     public ShooterController(RobotHardware hr) {
-        reads = hr.reads;
         leftShooter = hr.left_shooterMotor;
         rightShooter = hr.right_shooterMotor;
         leftOut  = new CachedPower(leftShooter,  0.002);
@@ -162,8 +159,8 @@ public class ShooterController {
         return balanceTrim + autoTrim;
     }
 
-    private double readCurrent(DcMotorEx m) {
-        try { return reads.current(m, SensorTiming.OPTIONAL_CURRENT); } catch (Exception e) { return 0.0; }
+    private static double readCurrent(DcMotorEx m) {
+        try { return m.getCurrent(CurrentUnit.AMPS); } catch (Exception e) { return 0.0; }
     }
 
     // 速度取得→送り許可→目標ランプ→PID/FF→平滑化→左右出力の順。
@@ -178,8 +175,8 @@ public class ShooterController {
         }
 
         double current = useLeftMotor
-                ? (reads.velocity(leftShooter, SensorTiming.VELOCITY_SHOOTER) + reads.velocity(rightShooter, SensorTiming.VELOCITY_SHOOTER)) / 2.0
-                : reads.velocity(rightShooter, SensorTiming.VELOCITY_SHOOTER);
+                ? (leftShooter.getVelocity() + rightShooter.getVelocity()) / 2.0
+                : rightShooter.getVelocity();
         lastSpeed = current;
 
         if (current <= feedStopSpeed) {

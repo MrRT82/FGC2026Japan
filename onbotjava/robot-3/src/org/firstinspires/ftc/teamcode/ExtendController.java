@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
-// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
+// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
+// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -140,17 +140,14 @@ public class ExtendController {
 
     private double stallStartAngle = 0.0;
 
-    private final SensorReads reads;
-
     public ExtendController(RobotHardware hr){
-        reads = hr.reads;
         extend = hr.extendMotor;
         extendOut = new CachedPower(extend, 0.005);
         pote   = hr.potentiometer;
     }
 
     public double readAngle(){
-        return reads.angle(pote, pote_offset);
+        return (pote.getVoltage() / pote.getMaxVoltage()) * 270 / 2 - pote_offset;
     }
 
     private static double clampTarget(double deg){
@@ -286,7 +283,7 @@ public class ExtendController {
             dtActual = measured;
         }
 
-        current = reads.angle(pote, pote_offset);
+        current = (pote.getVoltage() / pote.getMaxVoltage()) * 270 / 2 - pote_offset;
         angle   = current + gravity_offset_angle;
 
         if (!velInitialized) {
@@ -441,7 +438,7 @@ if (targetAngle >= STALL_TARGET_MIN_DEG) {
     long nowCur = System.currentTimeMillis();
     if (nowCur - lastCurReadMs >= CUR_READ_MS) {
         lastCurReadMs = nowCur;
-        try { lastMotorCur = reads.current(extend, SensorTiming.OPTIONAL_CURRENT); }
+        try { lastMotorCur = extend.getCurrent(CurrentUnit.AMPS); }
         catch (Exception ignored) { }
         if (lastMotorCur > currentLimit) curScale -= 0.06;
         else if (curScale < 1.0)         curScale += 0.03;

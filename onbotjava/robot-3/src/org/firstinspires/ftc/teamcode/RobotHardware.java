@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
-// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
+// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
+// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -17,8 +17,6 @@ import com.qualcomm.robotcore.hardware.DistanceSensor;
 
 // 設定名と実機の対応を集約する。方向や取付姿勢の変更は全OpModeに影響する。
 public class RobotHardware {
-    public final SensorTiming timing = new SensorTiming();
-    public final SensorReads reads = new SensorReads(timing);
     public DcMotorEx leftMotor;
     public DcMotorEx rightMotor;
 

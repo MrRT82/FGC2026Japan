@@ -1,9 +1,9 @@
 // ============================================================================
-// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
-// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
+// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
+// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.timing;
 
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.hardware.*;

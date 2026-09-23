@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
-// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
+// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
+// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -12,7 +12,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 // 射撃時の前後距離制御。距離cm、角度deg、dt秒。センサー取得と制御更新を分離する。
 public class Distance {
     private final DistanceSensor sensor;
-    private final SensorReads reads;
     private final ImuController imuController;
 
     public double kp = 0.01;
@@ -115,7 +114,7 @@ public class Distance {
                     long gap;
                     if (readerActive) {
                         try {
-                            double v = reads.distance(sensor);
+                            double v = sensor.getDistance(DistanceUnit.CM);
                             readerValue = v;
                             readerStamp = System.currentTimeMillis();
                         } catch (Exception e) {
@@ -158,11 +157,6 @@ public class Distance {
     public int getReaderErrors() { return readerErrors; }
 
     public Distance(DistanceSensor sensor, ImuController imuController) {
-        this(sensor, imuController, new SensorReads(new SensorTiming()));
-    }
-
-    public Distance(DistanceSensor sensor, ImuController imuController, SensorReads reads) {
-        this.reads = reads;
         this.sensor = sensor;
         this.imuController = imuController;
     }

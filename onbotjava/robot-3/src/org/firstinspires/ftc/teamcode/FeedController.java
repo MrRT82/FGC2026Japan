@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
-// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
+// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
+// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -45,7 +45,7 @@ public class FeedController
             lastCurMs = now;
             try {
                 if (feed instanceof DcMotorEx) {
-                    lastCur = reads.current((DcMotorEx) feed, SensorTiming.OPTIONAL_CURRENT);
+                    lastCur = ((DcMotorEx) feed).getCurrent(CurrentUnit.AMPS);
                 }
             } catch (Exception ignored) { }
             if (lastCur > currentLimit) {
@@ -58,10 +58,7 @@ public class FeedController
         }
     }
 
-    private final SensorReads reads;
-
     public FeedController(RobotHardware hr){
-        reads = hr.reads;
         feed = hr.feedMotor;
         feedOut = new CachedPower(feed, 0.02);
     }

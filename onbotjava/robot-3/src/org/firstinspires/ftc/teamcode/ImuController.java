@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
-// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
+// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
+// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -15,7 +15,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 public class ImuController {
 
     private final IMU imu;
-    private final SensorReads reads;
 
     public double imuTurnOutput = 0;
 
@@ -114,12 +113,10 @@ public class ImuController {
 
     public ImuController(RobotHardware hw) {
         imu = hw.imu;
-        reads = hw.reads;
     }
 
     public ImuController(IMU imu) {
         this.imu = imu;
-        reads = new SensorReads(new SensorTiming());
     }
 
     // START時に呼ぶ。現在の機体方向を方位ゼロにする。
@@ -167,7 +164,7 @@ public class ImuController {
 
     private void readImuOnce() {
         if (cacheEnabled && fresh) return;
-        YawPitchRollAngles ypr = reads.heading(imu);
+        YawPitchRollAngles ypr = imu.getRobotYawPitchRollAngles();
         cYaw   = ypr.getYaw(AngleUnit.DEGREES);
         cPitch = ypr.getPitch(AngleUnit.DEGREES);
         cRoll  = ypr.getRoll(AngleUnit.DEGREES);
@@ -221,7 +218,7 @@ public class ImuController {
         }
 
         if (useGyroRate || readBothRates) {
-            AngularVelocity av = reads.gyro(imu);
+            AngularVelocity av = imu.getRobotAngularVelocity(AngleUnit.DEGREES);
             gyroX = av.xRotationRate;
             gyroY = av.yRotationRate;
             gyroZ = av.zRotationRate;
