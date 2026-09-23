@@ -80,3 +80,6 @@
 - JDK 17からJava 8向けのコンパイルに伴うbootstrap class path警告1件あり。
 - サンドボックス内ではコンパイラ終了時にJARへのアクセス拒否が出たため、通常権限で再実行し、例外なくコンパイル・テスト完了を確認。
 - Hubへの転送、INIT/START、走行は行っていない。
+
+## 配布状況の更新
+2026-09-23、4号機Hub dddad6c23c4eeb3b へ転送し、Hubビルド・計測OpMode登録・読み戻し一致を確認。上記の未配布記述は移植時点の記録。詳細は [DEPLOYMENT.md](DEPLOYMENT.md)。実機INIT/STARTと計測は未実施。
