@@ -33,7 +33,7 @@ class OpModeIsolationTest(unittest.TestCase):
 
     def test_timing_dependencies_are_isolated(self):
         files = list((SOURCE / 'timing').glob('*.java'))
-        self.assertEqual(len(files), 21)
+        self.assertEqual(len(files), 22)
         for path in files:
             text = path.read_text(encoding='utf-8')
             with self.subTest(path=path.name):

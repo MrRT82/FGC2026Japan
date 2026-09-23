@@ -100,6 +100,7 @@ public final class SensorTimingTest {
         DcMotorEx motor = (DcMotorEx) Proxy.newProxyInstance(DcMotorEx.class.getClassLoader(),
                 new Class<?>[] {DcMotorEx.class}, (proxy, method, arguments) -> {
                     if (method.getName().equals("getVelocity")) { calls.incrementAndGet(); return 123.5; }
+                    if (method.getName().equals("getCurrent")) return 2.5;
                     throw new AssertionError("Unexpected hardware call: " + method.getName());
                 });
         check(reads.velocity(motor, SensorTiming.VELOCITY_SHOOTER) == 123.5 && calls.get() == 1,

@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-09-23 16:29:05 JST (UTC+09:00)
+// 変更内容: 展開負荷の比較計測を追加。制御ゲイン・出力計算は維持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -155,7 +155,28 @@ public class MainClass_Blue_Timing extends LinearOpMode {
         telemetry.update();
 
         // START後にIMUをゼロ化。本動作はさらに前後スティック入力で開始する。
+        int initialBalls = -1;
+        boolean prevCountLeft = false, prevCountRight = false;
+        while (opModeInInit()) {
+            boolean left = gamepad2.dpad_left, right = gamepad2.dpad_right;
+            if (right && !prevCountRight && !left) initialBalls++;
+            if (left && !prevCountLeft && !right) initialBalls = Math.max(-1, initialBalls - 1);
+            prevCountLeft = left;
+            prevCountRight = right;
+            telemetry.addData("ビルド", BuildInfo.STAMP);
+            telemetry.addData("試験開始時のボール数", initialBalls < 0 ? "未設定" : initialBalls);
+            telemetry.addLine("gamepad2 左/右で個数設定。試験中の増減は自動追跡しません");
+            telemetry.addLine("START後、従来どおり前後スティックで本動作・記録開始");
+            telemetry.update();
+            idle();
+        }
+        logger.setInitialBalls(initialBalls);
         waitForStart();
+        if (isStopRequested()) {
+            distance.stopReader();
+            logger.close();
+            return;
+        }
 
         long phT0, phT1, phT2, phT3, phT4, phT5;
 
@@ -546,6 +567,7 @@ public class MainClass_Blue_Timing extends LinearOpMode {
                     telemetry.addLine("★ 展開を止めてシューターへ電流を譲っています"
                             + "（詰まり + 速度未達）。速度が戻れば展開も再開します");
                 }
+                telemetry.addData("負荷試験の開始個数", initialBalls);
                 telemetry.addData("展開FF+PID", extendController.ffOut + " + " + extendController.pidOut);
                 telemetry.addData("IMU現在角度", Angle);
                 telemetry.addData("IMU目標角度", imuController.getTarget());

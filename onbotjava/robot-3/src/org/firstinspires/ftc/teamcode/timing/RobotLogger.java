@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-09-23 16:29:05 JST (UTC+09:00)
+// 変更内容: 展開負荷の比較計測を追加。制御ゲイン・出力計算は維持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -34,6 +34,9 @@ public class RobotLogger {
     private static final long CURRENT_INTERVAL_MS = 200;
     private int curIndex = 0;
     private double cVolt = 0.0;
+    private long voltageNs;
+    private final ExtendLoadSample loadSample = new ExtendLoadSample();
+    public void setInitialBalls(int count) { loadSample.initialBalls = count; }
 
     private final RobotHardware hw;
     private final HardwareMap hardwareMap;
@@ -110,11 +113,11 @@ public class RobotLogger {
             case 2: cShL   = cur(shooter.leftShooter, SensorTiming.DIAG_SHOOTER_L);  break;
             case 3: cShR   = cur(shooter.rightShooter, SensorTiming.DIAG_SHOOTER_R); break;
             case 4: cInt   = cur(hw.intakeMotor, SensorTiming.DIAG_INTAKE);       break;
-            case 5: cExt   = cur(extend.extend, SensorTiming.DIAG_EXTEND);        break;
+            case 5: break; // Extend current is sampled with control state every >=100ms in update().
             case 6: cFeed  = curDc(hw.feedMotor);       break;
             case 7: cClimb = cur(hw.climbMotor, SensorTiming.DIAG_CLIMB);        break;
             case 8: cHub   = hubCurrent();              break;
-            default: cVolt = voltage();                 break;
+            default: cVolt = voltage(); voltageNs = System.nanoTime(); break;
         }
         curIndex++;
         if (curIndex > 9) curIndex = 0;
@@ -142,11 +145,12 @@ public class RobotLogger {
         cShL   = cur(shooter.leftShooter, SensorTiming.DIAG_SHOOTER_L);
         cShR   = cur(shooter.rightShooter, SensorTiming.DIAG_SHOOTER_R);
         cInt   = cur(hw.intakeMotor, SensorTiming.DIAG_INTAKE);
-        cExt   = cur(extend.extend, SensorTiming.DIAG_EXTEND);
+        cExt   = Double.NaN; // No runtime load sample during init.
         cFeed  = curDc(hw.feedMotor);
         cClimb = cur(hw.climbMotor, SensorTiming.DIAG_CLIMB);
         cHub   = hubCurrent();
         cVolt  = voltage();
+        voltageNs = System.nanoTime();
 
         try {
             File dir = new File(DIR);
@@ -184,7 +188,7 @@ public class RobotLogger {
                 + "build,"
 
                 + "ext_stall,ext_pote,ext_yield,dst_age_ms,dst_reader_errors,dst_reader_running"
-                + SensorTiming.csvHeader() + "\n";
+                + ExtendLoadSample.csvHeader() + SensorTiming.csvHeader() + "\n";
     }
 
     // 間引き後に1行記録。loop_msはログ行間隔、period_msが制御周期。
@@ -197,6 +201,9 @@ public class RobotLogger {
         if (now - lastLogMs < LOG_INTERVAL_MS) return;
 
         long wt0 = System.nanoTime();
+        loadSample.sample(hw.reads, extend, cVolt,
+                voltageNs == 0 ? -1 : (wt0 - voltageNs) / 1e6, periodMs);
+        cExt = loadSample.currentAmps;
 
         long t = now - startMs;
         long loop = now - prevLogMs;
@@ -332,6 +339,7 @@ public class RobotLogger {
         sb.append(',').append(distance != null ? distance.getSampleAgeMs() : -1)
           .append(',').append(distance != null ? distance.getReaderErrors() : 0)
           .append(',').append(distance != null && distance.isReaderRunning() ? 1 : 0);
+        loadSample.append(sb);
         hw.timing.recordSince(SensorTiming.LOG_BUILD, wt0, false);
         hw.timing.appendWindow(sb);
         sb.append('\n');

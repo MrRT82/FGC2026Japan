@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-09-23 16:29:05 JST (UTC+09:00)
+// 変更内容: 展開負荷の比較計測を追加。制御ゲイン・出力計算は維持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -149,6 +149,14 @@ public class ExtendController {
         pote   = hr.potentiometer;
     }
 
+    // Diagnostics only: no sensor access in these getters.
+    long observationNs;
+    double observedRawDt;
+    double observedControlTarget = Double.NaN;
+    double getGoal() { return targetGoal; }
+    double getControlDt() { return dtActual; }
+    double getSentOutput() { return extendOut.getLast(); }
+
     public double readAngle(){
         return reads.angle(pote, pote_offset);
     }
@@ -279,6 +287,7 @@ public class ExtendController {
         yielding = false;
 
         double measured = loopTimer.seconds();
+        observedRawDt = measured;
         loopTimer.reset();
         if (measured < DT_MIN || measured > DT_MAX) {
             dtActual = (measured > DT_MAX) ? DT_MAX : 0.020;
@@ -287,6 +296,7 @@ public class ExtendController {
         }
 
         current = reads.angle(pote, pote_offset);
+        observationNs = System.nanoTime();
         angle   = current + gravity_offset_angle;
 
         if (!velInitialized) {
@@ -425,6 +435,7 @@ if (targetAngle >= STALL_TARGET_MIN_DEG) {
     stallSince = 0;
 }
 
+        observedControlTarget = targetAngle;
         error = targetAngle - current;
         integral += error * dtActual;
         // 積分を±0.5へ制限する。現在ki=0.005なので出力寄与は最大±0.0025。
