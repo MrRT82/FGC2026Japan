@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
+// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -105,14 +105,14 @@ public class RobotLogger {
     public void readOneCurrent() {
         if (failed) return;
         switch (curIndex) {
-            case 0: cDrvL  = cur(hw.leftMotor);         break;
-            case 1: cDrvR  = cur(hw.rightMotor);        break;
-            case 2: cShL   = cur(shooter.leftShooter);  break;
-            case 3: cShR   = cur(shooter.rightShooter); break;
-            case 4: cInt   = cur(hw.intakeMotor);       break;
-            case 5: cExt   = cur(extend.extend);        break;
+            case 0: cDrvL  = cur(hw.leftMotor, SensorTiming.DIAG_DRIVE_L);         break;
+            case 1: cDrvR  = cur(hw.rightMotor, SensorTiming.DIAG_DRIVE_R);        break;
+            case 2: cShL   = cur(shooter.leftShooter, SensorTiming.DIAG_SHOOTER_L);  break;
+            case 3: cShR   = cur(shooter.rightShooter, SensorTiming.DIAG_SHOOTER_R); break;
+            case 4: cInt   = cur(hw.intakeMotor, SensorTiming.DIAG_INTAKE);       break;
+            case 5: cExt   = cur(extend.extend, SensorTiming.DIAG_EXTEND);        break;
             case 6: cFeed  = curDc(hw.feedMotor);       break;
-            case 7: cClimb = cur(hw.climbMotor);        break;
+            case 7: cClimb = cur(hw.climbMotor, SensorTiming.DIAG_CLIMB);        break;
             case 8: cHub   = hubCurrent();              break;
             default: cVolt = voltage();                 break;
         }
@@ -137,14 +137,14 @@ public class RobotLogger {
         List<LynxModule> list = hardwareMap.getAll(LynxModule.class);
         hubs = list.toArray(new LynxModule[0]);
 
-        cDrvL  = cur(hw.leftMotor);
-        cDrvR  = cur(hw.rightMotor);
-        cShL   = cur(shooter.leftShooter);
-        cShR   = cur(shooter.rightShooter);
-        cInt   = cur(hw.intakeMotor);
-        cExt   = cur(extend.extend);
+        cDrvL  = cur(hw.leftMotor, SensorTiming.DIAG_DRIVE_L);
+        cDrvR  = cur(hw.rightMotor, SensorTiming.DIAG_DRIVE_R);
+        cShL   = cur(shooter.leftShooter, SensorTiming.DIAG_SHOOTER_L);
+        cShR   = cur(shooter.rightShooter, SensorTiming.DIAG_SHOOTER_R);
+        cInt   = cur(hw.intakeMotor, SensorTiming.DIAG_INTAKE);
+        cExt   = cur(extend.extend, SensorTiming.DIAG_EXTEND);
         cFeed  = curDc(hw.feedMotor);
-        cClimb = cur(hw.climbMotor);
+        cClimb = cur(hw.climbMotor, SensorTiming.DIAG_CLIMB);
         cHub   = hubCurrent();
         cVolt  = voltage();
 
@@ -155,8 +155,15 @@ public class RobotLogger {
             File f = new File(dir, "robot_" + stamp + ".csv");
             out = new BufferedWriter(new FileWriter(f), 16384);
             path = f.getAbsolutePath();
-            out.write(
-                "t_ms,loop_ms,"
+            out.write(csvHeader());
+        } catch (Exception e) {
+            failed = true;
+            path = "ERROR: " + e.getMessage();
+        }
+    }
+
+    static String csvHeader() {
+        return "t_ms,loop_ms,"
                 + "gp1_lx,gp1_ly,gp1_rx,gp1_lt,gp1_rt,gp1_btn,gp2_lt,gp2_btn,"
                 + "shoot_mode,climb_mode,discharge_mode,climb_enum,"
                 + "drv_l_out,drv_r_out,drv_l_vel,drv_r_vel,drv_l_cur,drv_r_cur,"
@@ -176,11 +183,8 @@ public class RobotLogger {
 
                 + "build,"
 
-                + "ext_stall,ext_pote,ext_yield\n");
-        } catch (Exception e) {
-            failed = true;
-            path = "ERROR: " + e.getMessage();
-        }
+                + "ext_stall,ext_pote,ext_yield,dst_age_ms,dst_reader_errors,dst_reader_running"
+                + SensorTiming.csvHeader() + "\n";
     }
 
     // 間引き後に1行記録。loop_msはログ行間隔、period_msが制御周期。
@@ -199,7 +203,7 @@ public class RobotLogger {
         lastLogMs = now;
         prevLogMs = now;
 
-        StringBuilder sb = new StringBuilder(320);
+        StringBuilder sb = new StringBuilder(2048);
         sb.append(t).append(',').append(loop).append(',');
 
         ap2(sb, gp1.left_stick_x);  sb.append(',');
@@ -218,8 +222,8 @@ public class RobotLogger {
 
         ap3(sb, driveLeft);  sb.append(',');
         ap3(sb, driveRight); sb.append(',');
-        ap1(sb, hw.leftMotor.getVelocity());  sb.append(',');
-        ap1(sb, hw.rightMotor.getVelocity()); sb.append(',');
+        ap1(sb, hw.reads.velocity(hw.leftMotor, SensorTiming.VELOCITY_DRIVE));  sb.append(',');
+        ap1(sb, hw.reads.velocity(hw.rightMotor, SensorTiming.VELOCITY_DRIVE)); sb.append(',');
         ap2(sb, cDrvL); sb.append(',');
         ap2(sb, cDrvR); sb.append(',');
 
@@ -250,8 +254,8 @@ public class RobotLogger {
 
         ap1(sb, shooter.getTargetRamped()); sb.append(',');
 
-        double shVL = shooter.leftShooter.getVelocity();
-        double shVR = shooter.rightShooter.getVelocity();
+        double shVL = hw.reads.velocity(shooter.leftShooter, SensorTiming.VELOCITY_SHOOTER);
+        double shVR = hw.reads.velocity(shooter.rightShooter, SensorTiming.VELOCITY_SHOOTER);
         ap1(sb, (shVL + shVR) / 2.0); sb.append(',');
         ap1(sb, shVL); sb.append(',');
         ap1(sb, shVR); sb.append(',');
@@ -268,7 +272,7 @@ public class RobotLogger {
         ap2(sb, cShR); sb.append(',');
         ap2(sb, cInt); sb.append(',');
 
-        ap1(sb, hw.intakeMotor.getVelocity()); sb.append(',');
+        ap1(sb, hw.reads.velocity(hw.intakeMotor, SensorTiming.VELOCITY_INTAKE)); sb.append(',');
         sb.append(intake != null && intake.isStallBackoff() ? 1 : 0); sb.append(',');
         ap2(sb, cHub); sb.append(',');
 
@@ -325,14 +329,29 @@ public class RobotLogger {
         sb.append(',').append(extend.stallFault ? 1 : 0)
           .append(',').append(extend.poteFault  ? 1 : 0)
           .append(',').append(extend.yielding   ? 1 : 0);
+        sb.append(',').append(distance != null ? distance.getSampleAgeMs() : -1)
+          .append(',').append(distance != null ? distance.getReaderErrors() : 0)
+          .append(',').append(distance != null && distance.isReaderRunning() ? 1 : 0);
+        hw.timing.recordSince(SensorTiming.LOG_BUILD, wt0, false);
+        hw.timing.appendWindow(sb);
         sb.append('\n');
 
         try {
 
-            out.write(sb.toString());
+            long writeStart = System.nanoTime();
+            boolean writeFailed = true;
+            try {
+                out.write(sb.toString());
+                writeFailed = false;
+            } finally { hw.timing.recordSince(SensorTiming.LOG_WRITE, writeStart, writeFailed); }
             rows++;
             if (now - lastFlushMs >= FLUSH_INTERVAL_MS) {
-                out.flush();
+                long flushStart = System.nanoTime();
+                boolean flushFailed = true;
+                try {
+                    out.flush();
+                    flushFailed = false;
+                } finally { hw.timing.recordSince(SensorTiming.LOG_FLUSH, flushStart, flushFailed); }
                 lastFlushMs = now;
             }
             phLog = (System.nanoTime() - wt0) / 1e6;
@@ -372,14 +391,14 @@ public class RobotLogger {
         return b;
     }
 
-    // 取得例外は現状0として記録するため、真の0Aとは区別できない。
-    private double cur(DcMotorEx m) {
-        try { return m.getCurrent(CurrentUnit.AMPS); } catch (Exception e) { return 0.0; }
+    // 値の列では例外も0。対応するtm_*_errorsで同じ集計窓の取得失敗を確認する。
+    private double cur(DcMotorEx m, int metric) {
+        try { return hw.reads.current(m, metric); } catch (Exception e) { return 0.0; }
     }
 
     private double curDc(com.qualcomm.robotcore.hardware.DcMotor m) {
         try {
-            if (m instanceof DcMotorEx) return ((DcMotorEx) m).getCurrent(CurrentUnit.AMPS);
+            if (m instanceof DcMotorEx) return hw.reads.current((DcMotorEx) m, SensorTiming.DIAG_FEED);
         } catch (Exception ignored) { }
         return 0.0;
     }
@@ -388,7 +407,7 @@ public class RobotLogger {
         double sum = 0.0;
         if (hubs != null) {
             for (LynxModule h : hubs) {
-                try { sum += h.getCurrent(CurrentUnit.AMPS); } catch (Exception ignored) { }
+                try { sum += hw.reads.hubCurrent(h, SensorTiming.DIAG_HUB); } catch (Exception ignored) { }
             }
         }
         return sum;
@@ -400,7 +419,7 @@ public class RobotLogger {
             for (LynxModule h : hubs) {
 
                 try {
-                    double x = h.getInputVoltage(VoltageUnit.VOLTS);
+                    double x = hw.reads.voltage(h, SensorTiming.DIAG_VOLTAGE);
                     if (x > 0) v = Math.min(v, x);
                 } catch (Exception ignored) { }
             }

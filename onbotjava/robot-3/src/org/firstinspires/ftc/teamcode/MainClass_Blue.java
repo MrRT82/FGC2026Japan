@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-09-23 14:48:47 JST (UTC+09:00)
+// 変更内容: センサーAPI所要時間と制御周期の計測を追加。取得頻度・制御設定は維持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -91,7 +91,7 @@ public class MainClass_Blue extends LinearOpMode {
         extendController = new ExtendController(hardware);
         imuController = new ImuController(hardware);
         driveAssist = new DriveAssist();
-        distance = new Distance(hardware.distanceSensor, imuController);
+        distance = new Distance(hardware.distanceSensor, imuController, hardware.reads);
 
         logger = new RobotLogger(hardware, hardwareMap, imuController, extendController,
                 shooterController, distance);
@@ -122,7 +122,7 @@ public class MainClass_Blue extends LinearOpMode {
                 if (now - lastMs < VOLT_CACHE_MS) return cached;
                 double v = Double.POSITIVE_INFINITY;
                 for (LynxModule h : hubsForVolt) {
-                    double x = h.getInputVoltage(VoltageUnit.VOLTS);
+                    double x = hardware.reads.voltage(h, SensorTiming.FF_VOLTAGE);
                     if (x > 0) v = Math.min(v, x);
                 }
                 cached = (v == Double.POSITIVE_INFINITY) ? 0.0 : v;
@@ -184,13 +184,17 @@ public class MainClass_Blue extends LinearOpMode {
 
         imuController.reset();
 
+
         while (opModeIsActive()) {
             phT0 = System.nanoTime();
             periodMs = (phPrevT0 == 0) ? 0.0 : (phT0 - phPrevT0) / 1e6;
+            if (phPrevT0 != 0) hardware.timing.record(SensorTiming.LOOP_PERIOD, phPrevT0, phT0, false);
             phPrevT0 = phT0;
 
             // 周期先頭：バルクキャッシュ更新、IMUキャッシュ無効化、電流等を順番に取得する。
+            long cacheStart = System.nanoTime();
             for (int h = 0; h < hubs.length; h++) hubs[h].clearBulkCache();
+            hardware.timing.recordSince(SensorTiming.CACHE_CLEAR, cacheStart, false);
 
             imuController.beginLoop();
 
@@ -324,7 +328,7 @@ public class MainClass_Blue extends LinearOpMode {
                     timerRunning = false;
                 } else if (isReverse) {
                     if (timer.milliseconds() >= 300) isReverse = false;
-                } else if (Math.abs(intakeController.Intake.getVelocity()) < 100) {
+                } else if (Math.abs(hardware.reads.velocity(intakeController.Intake, SensorTiming.VELOCITY_INTAKE)) < 100) {
                     if (!timerRunning) {
                         timer.reset();
                         timerRunning = true;
@@ -457,8 +461,8 @@ public class MainClass_Blue extends LinearOpMode {
                 driveRightOut.set(finalOutput.rightPower);
                 phT4 = System.nanoTime();
 
-                double shL = shooterController.leftShooter.getVelocity();
-                double shR = shooterController.rightShooter.getVelocity();
+                double shL = hardware.reads.velocity(shooterController.leftShooter, SensorTiming.VELOCITY_SHOOTER);
+                double shR = hardware.reads.velocity(shooterController.rightShooter, SensorTiming.VELOCITY_SHOOTER);
                 int cS = (int) ((shL + shR) / 2);
 
                 // テレメトリと診断表示。片側シューター故障の判定もこの間引き内にある。
@@ -629,6 +633,7 @@ public class MainClass_Blue extends LinearOpMode {
                 allTimer.reset();
                 if (Math.abs(gamepad1.left_stick_y) > 0.05) {
                     isStart = true;
+                    hardware.timing.start();
                 }
             }
 
@@ -640,11 +645,21 @@ public class MainClass_Blue extends LinearOpMode {
             prevRB = gamepad1.right_bumper;
 
             // 周期の残り時間を待つ。超過時は期限を現在時刻へ戻して遅れを持ち越さない。
+            long workEnd = System.nanoTime();
+            hardware.timing.record(SensorTiming.LOOP_WORK, phT0, workEnd, false);
+            if (isStart) {
+                int workMode = mode == RobotMode.SHOOT
+                        ? (gamepad1.right_bumper ? SensorTiming.WORK_FIRE : SensorTiming.WORK_SHOOT)
+                        : mode == RobotMode.CLIMB ? SensorTiming.WORK_CLIMB
+                        : mode == RobotMode.DISCHARGE ? SensorTiming.WORK_DISCHARGE : SensorTiming.WORK_MANUAL;
+                hardware.timing.record(workMode, phT0, workEnd, false);
+            }
             loopCountTotal++;
             if (LOOP_PERIOD_NS > 0) {
                 loopDeadline += LOOP_PERIOD_NS;
                 long nowNs = System.nanoTime();
                 if (nowNs > loopDeadline) {
+                    hardware.timing.record(SensorTiming.LOOP_OVERRUN, loopDeadline, nowNs, false);
                     double overMs = (nowNs - loopDeadline) / 1e6;
                     if (overMs > overrunWorstMs) overrunWorstMs = overMs;
                     overrunCount++;
