@@ -1,0 +1,11 @@
+{
+  "pivot_hsv_low": [40, 100, 80],
+  "pivot_hsv_high": [85, 255, 255],
+  "tip_hsv_low": [95, 100, 80],
+  "tip_hsv_high": [130, 255, 255],
+  "min_area_px": 30,
+  "min_length_px": 40,
+  "zero_deg": 0,
+  "direction": 1,
+  "log_offset_s": 0
+}
