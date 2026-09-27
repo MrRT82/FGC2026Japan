@@ -4,7 +4,6 @@ fonttools==4.66.0
 kiwisolver==1.5.1
 matplotlib==3.11.2
 numpy==2.5.3
-opencv-python-headless==4.14.0.94
 packaging==26.3
 pillow==12.3.0
 pyparsing==3.3.3

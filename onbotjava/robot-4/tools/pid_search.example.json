@@ -1,0 +1,14 @@
+{
+  "reference_voltage_V": 12.0,
+  "max_rmse_deg": 2.0,
+  "max_final_error_deg": 1.0,
+  "max_peak_error_deg": 5.0,
+  "kp": [0.01, 0.0175, 0.025],
+  "ki": [0, 0.001, 0.005],
+  "kd": [0, 0.001, 0.003],
+  "friction": [0.06, 0.12, 0.18],
+  "cases": [
+    {"start_angle_sensor_deg": 35, "step_deg": 5},
+    {"start_angle_sensor_deg": 35, "step_deg": -5}
+  ]
+}

@@ -1,0 +1,2 @@
+# Optional diagnostic only; not needed for CSV model rebuild.
+opencv-python-headless>=4.8,<5

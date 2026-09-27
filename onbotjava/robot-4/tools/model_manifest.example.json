@@ -1,0 +1,43 @@
+{
+  "balls": 0,
+  "motor_model": "REV_Core_Hex",
+  "gear_ratio": "user_reported_10.4_reduction",
+  "motor_hub_voltage_signal": null,
+  "geometry": {
+    "mechanism": "single_rigid_joint",
+    "source": "REPLACE_WITH_CAD_REVISION_AND_MEASUREMENT_REFERENCE",
+    "sensor_scale": null,
+    "sensor_offset_deg": null,
+    "gravity_phase_deg": null,
+    "command_sign": 1
+  },
+  "identification": {
+    "moving_dps": 2.0,
+    "position_noise_deg": 0.15,
+    "motion_displacement_deg": 0.3,
+    "max_ramp_V_per_s": 2.0,
+    "effort_uncertainty_V": 0.15,
+    "max_replay_rmse_deg": 1.0,
+    "max_replay_error_deg": 3.0,
+    "max_sliding_rmse_V": 0.3,
+    "max_onset_error_s": 0.2
+  },
+  "files": [
+    {
+      "csv": "train.csv",
+      "role": "train",
+      "intervals": [
+        {"kind": "sliding", "start_s": 1.0, "end_s": 7.0},
+        {"kind": "breakaway", "start_s": 9.0, "end_s": 11.0, "direction": 1, "last_still_s": 10.0, "first_motion_s": 10.2}
+      ]
+    },
+    {
+      "csv": "validation.csv",
+      "role": "validation",
+      "intervals": [
+        {"kind": "replay", "start_s": 1.0, "end_s": 7.0},
+        {"kind": "breakaway", "start_s": 9.0, "end_s": 11.0, "direction": -1, "last_still_s": 10.0, "first_motion_s": 10.2}
+      ]
+    }
+  ]
+}

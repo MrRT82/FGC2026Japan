@@ -1,4 +1,7 @@
-"""Track two colored markers in a fixed, side-on, constant-frame-rate video.
+"""OPTIONAL diagnostic: external motion versus the angle sensor, if discrepant.
+
+Not part of model fitting/gain tuning; CAD calibration + CSV is the main flow.
+Track two colored markers in a fixed, side-on, constant-frame-rate video.
 
 Config JSON: pivot_hsv_low/high, tip_hsv_low/high (OpenCV HSV ranges),
 min_area_px, min_length_px, zero_deg, direction (+1/-1), log_offset_s.

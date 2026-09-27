@@ -22,3 +22,6 @@
 通常Blue/Redを維持したまま、3号機と同じ独立した MainClass_Blue_Timing を追加。計測の使い方と制約は [TIMING.md](TIMING.md) を参照。
 
 4号機Hubへの配布・ビルド・登録確認の記録: [DEPLOYMENT.md](DEPLOYMENT.md)。
+
+展開の解析は「静止/動摩擦を含むモデル同定・独立検証 → PIDと摩擦補償の探索」の2段構成。
+[解析手順](tools/ANALYSIS_README.md)を参照。旧線形モデルによる候補ランキングは廃止。動画は任意の補助診断。
