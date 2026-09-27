@@ -7,14 +7,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parents[1]
 SOURCE = ROOT / 'src/org/firstinspires/ftc/teamcode'
-BASELINE = 'd482df983993daa352928fc54437c8ece35bb5a3'
+BASELINE = '1547d2a6e6a9d51c240ed6242b96917c692d96f5'
 
 
 class OpModeIsolationTest(unittest.TestCase):
     def test_all_normal_sources_are_unchanged(self):
         paths = subprocess.check_output(
-            ['git', 'ls-tree', '-r', '--name-only', BASELINE, 'onbotjava/robot-4/src'],
+            ['git', 'ls-tree', '-r', '--name-only', BASELINE, 'onbotjava/robot-4/src/org/firstinspires/ftc/teamcode'],
             cwd=REPO, text=True).splitlines()
+        paths = [p for p in paths if '/timing/' not in p and '/tuning/' not in p]
         self.assertEqual(len(paths), 22)
         self.assertEqual(len(list(SOURCE.glob('*.java'))), 22)
         for path in paths:
@@ -33,12 +34,12 @@ class OpModeIsolationTest(unittest.TestCase):
 
     def test_timing_dependencies_are_isolated(self):
         files = list((SOURCE / 'timing').glob('*.java'))
-        self.assertEqual(len(files), 21)
+        self.assertEqual(len(files), 22)
         for path in files:
             text = path.read_text(encoding='utf-8')
             with self.subTest(path=path.name):
                 self.assertIn('package org.firstinspires.ftc.teamcode.timing;', text)
-                self.assertNotRegex(text, r'import\s+org\.firstinspires\.ftc\.teamcode\.(?!timing\.)')
+                self.assertNotRegex(text, r'import\s+org\.firstinspires\.ftc\.teamcode\.(?!timing\.|tuning\.TuneCsvWriter;)')
         self.assertFalse((SOURCE / 'SensorReads.java').exists())
         self.assertFalse((SOURCE / 'SensorTiming.java').exists())
         timing_logger = (SOURCE / 'timing/RobotLogger.java').read_text(encoding='utf-8')

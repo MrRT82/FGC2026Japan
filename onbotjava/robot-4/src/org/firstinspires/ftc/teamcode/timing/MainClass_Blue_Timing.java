@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-09-27 JST
+// 変更内容: 4号機専用の電源ログを追加。既存電流/電圧取得を記録し余分に取得しない。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -96,6 +96,7 @@ public class MainClass_Blue_Timing extends LinearOpMode {
         logger = new RobotLogger(hardware, hardwareMap, imuController, extendController,
                 shooterController, distance);
 
+        try {
         distance.startReader();
 
         logger.setIntake(intakeController);
@@ -122,7 +123,10 @@ public class MainClass_Blue_Timing extends LinearOpMode {
                 if (now - lastMs < VOLT_CACHE_MS) return cached;
                 double v = Double.POSITIVE_INFINITY;
                 for (LynxModule h : hubsForVolt) {
-                    double x = hardware.reads.voltage(h, SensorTiming.FF_VOLTAGE);
+                    long started = System.nanoTime();
+                    double x = Double.NaN;
+                    try { x = hardware.reads.voltage(h, SensorTiming.FF_VOLTAGE); }
+                    finally { logger.traceVoltage(h, x, started); }
                     if (x > 0) v = Math.min(v, x);
                 }
                 cached = (v == Double.POSITIVE_INFINITY) ? 0.0 : v;
@@ -592,6 +596,7 @@ public class MainClass_Blue_Timing extends LinearOpMode {
                         + "%  クライム " + (int) climbController.getSkipRate() + "%");
                 telemetry.addData("ログ", logger.isFailed() ? "書き込み失敗"
                         : (logger.getRows() + " 行  " + logger.getPath()));
+                telemetry.addData("電源ログ", logger.getPowerPath());
                 telemetry.addData("ドライブ", cutDriveForShot
                         ? "停止中（発射のため電流を譲っています）" : "有効");
                 telemetry.addData("前後の制御", (mode != RobotMode.SHOOT) ? "-"
@@ -686,9 +691,12 @@ public class MainClass_Blue_Timing extends LinearOpMode {
 
         }
 
-        // 通常終了時の後処理。例外経路はtry/finally化が必要。
-        distance.stopReader();
-        logger.close();
+        } finally {
+            for (com.qualcomm.robotcore.hardware.DcMotor motor : hardwareMap.getAll(com.qualcomm.robotcore.hardware.DcMotor.class)) {
+                try { motor.setPower(0); } catch (RuntimeException ignored) { }
+            }
+            try { distance.stopReader(); } finally { logger.close(); }
+        }
     }
 
     // 目標速度の変更に送り閾値を追従させる。非射撃中は待機速度を維持する。

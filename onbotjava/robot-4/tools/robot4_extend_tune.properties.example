@@ -1,0 +1,21 @@
+# Copy to /sdcard/FIRST/robot4_extend_tune.properties only after limits are measured.
+# Missing file => monitor only. Provisional test thresholds below are NOT manufacturer ratings.
+# Start with monitor only. Confirm voltage/current and mechanical support before enabling motion.
+motion_enabled=false
+motor_model=REV_Core_Hex
+gear_ratio=user_reported_10.4_reduction
+balls=-1
+min_angle_deg=1
+max_angle_deg=75
+motor_limit_A=2.0
+hub_limit_A=8.0
+min_voltage_V=11.0
+max_power=0.25
+# Starting coefficients from 1547d2a, NOT newly tuned or validated for this gear ratio.
+kp=0.0175
+ki=0.005
+kd=0
+gravity_cos=0.0638
+gravity_constant=0.0694
+gravity_phase_deg=17
+friction=0.123

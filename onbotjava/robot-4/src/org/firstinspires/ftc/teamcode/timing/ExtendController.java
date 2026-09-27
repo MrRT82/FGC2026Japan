@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-09-27 JST
+// 変更内容: 4号機1547d2aの角度設定と逆転時間へ同期。計測以外の制御値は通常版に一致。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -19,12 +19,12 @@ public class ExtendController {
     public AnalogInput pote;
 
     // ポテンショ換算のオフセットと機構の目標位置。機械変更時は校正する。
-    double pote_offset = 21;
+    double pote_offset = 0;
 
-    double pote_Middle = 10;
-    double pote_Up = 76;
-    double pote_Down = -16;
-    double targetAngle = 76;
+    double pote_Middle = 38;
+    double pote_Up = 75;
+    double pote_Down = 1;
+    double targetAngle = 75;
     double current;
 
     double integral = 0;
@@ -36,8 +36,8 @@ public class ExtendController {
     double prevError = 0;
     boolean reverse = false;
 
-    private static final double TARGET_MIN_DEG = -20.0;
-    private static final double TARGET_MAX_DEG = 120.0;
+    private static final double TARGET_MIN_DEG = -2;
+    private static final double TARGET_MAX_DEG = 88;
 
     // 重力FFと摩擦FFを使用。初動の100%上書きは削除済み。
     public boolean ffEnabled = true;
@@ -82,7 +82,7 @@ public class ExtendController {
     private static final double STUCK_RATE_DPS  = 5.0;
     private static final long   STUCK_CHECK_MS  = 100;
     private static final long   STUCK_TIME_MS   = 500;
-    private static final long   REVERSE_TIME_MS = 500;
+    private static final long   REVERSE_TIME_MS = 1000;
 
     private static final double REVERSE_DUTY   = 0.55;
 
@@ -124,8 +124,8 @@ public class ExtendController {
     }
 
     // 校正範囲外のポテンショ値で出力を停止する。
-    private static final double POTE_ANGLE_MIN = -20.8;
-    private static final double POTE_ANGLE_MAX = 120.0;
+    private static final double POTE_ANGLE_MIN = -5;
+    private static final double POTE_ANGLE_MAX = 90;
     public boolean poteFault = false;
 
     // 収納側目標で、一定出力なのに1deg未満の動きが1500ms続くと停止保護をラッチする。
@@ -316,7 +316,7 @@ public class ExtendController {
             stallRefAngle = current;
         }
 
-        // 詰まり後は500ms逆転する。逆転処理は電力譲渡より優先。
+        // 詰まり後は1000ms逆転する。逆転処理は電力譲渡より優先。
         if (isStuck) {
             if (System.currentTimeMillis() - stuckReverseStart < REVERSE_TIME_MS) {
                 reverse = true;

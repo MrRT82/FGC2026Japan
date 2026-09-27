@@ -1,5 +1,9 @@
 # 4 号機：OnBot Java
 
+2026-09-27: 展開専用 `Extend_Tune_R4` とBlue計測版の全機構電源ログを追加。
+手順・停止条件・未配布事項は [EXTEND_TUNING.md](EXTEND_TUNING.md) を参照。
+通常版はユーザー更新1547d2aのまま。計測版の角度・Feed方向も4号機設定へ同期済み。
+
 専用ブランチ: codex/robot-4
 専用作業フォルダー: github_FGC2026Japan_robot4
 ソース: src/org/firstinspires/ftc/teamcode/

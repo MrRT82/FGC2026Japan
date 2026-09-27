@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-09-27 JST
+// 変更内容: 4号機1547d2aに合わせフィード方向を同期。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -78,11 +78,11 @@ public class FeedController
 
     public void Feed_turn_right(){
         updateLimit();
-        feedOut.set(getPowerLevel() * scale);
+        feedOut.set(-getPowerLevel() * scale);
     }
     public void Feed_turn_left(){
         updateLimit();
-        feedOut.set(-getPowerLevel() * scale);
+        feedOut.set(getPowerLevel() * scale);
     }
     public void Feed_turn_stop(){
         feedOut.set(0);

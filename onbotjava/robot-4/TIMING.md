@@ -1,3 +1,7 @@
+> 2026-09-27更新: 以下のv2・通常版d482df9一致・21計測Java・43配布Javaの記述は初回移植時点の記録。
+> 現在の通常版はユーザー更新1547d2a。計測版v3は4号機の角度・逆転時間・Feed方向へ同期。
+> 計測版にPowerTraceを加えて22Java、展開専用tuningに4Javaを追加し合計48Java。
+> 展開計測と全機構電源ログの現行仕様・未配布状態は [EXTEND_TUNING.md](EXTEND_TUNING.md) を参照。
 # 4号機のセンサー取得時間計測
 
 計測は独立した `MainClass_Blue_Timing`（グループ `1_DIAG`）だけで行う。通常の `MainClass_Blue` / `MainClass_Red` と依存クラスは計測前のコミット `d482df9` の22ファイルと完全一致する。計測版は依存クラスを含めて `org.firstinspires.ftc.teamcode.timing` に分離した。通常版に計測の時計読取り・集計・分岐・追加CSV列はない。センサー取得頻度、順番、制御ゲイン、モーター指令は変更しない。計測用にセンサーを余分に読まない。

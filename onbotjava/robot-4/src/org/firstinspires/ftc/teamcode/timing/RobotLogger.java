@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-09-27 JST
+// 変更内容: 4号機専用の電源ログを追加。既存電流/電圧取得を記録し余分に取得しない。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -54,6 +54,8 @@ public class RobotLogger {
     private double cDrvL = 0, cDrvR = 0, cShL = 0, cShR = 0;
     private double cInt = 0, cExt = 0, cFeed = 0, cClimb = 0, cHub = 0;
     private boolean failed = false;
+    private PowerTrace powerTrace;
+    private boolean powerFailed;
     private int rows = 0;
 
     public RobotLogger(RobotHardware hw, HardwareMap map, ImuController imu,
@@ -136,6 +138,9 @@ public class RobotLogger {
 
         List<LynxModule> list = hardwareMap.getAll(LynxModule.class);
         hubs = list.toArray(new LynxModule[0]);
+
+        try { powerTrace = new PowerTrace(new File(DIR)); }
+        catch (Exception e) { powerFailed = true; }
 
         cDrvL  = cur(hw.leftMotor, SensorTiming.DIAG_DRIVE_L);
         cDrvR  = cur(hw.rightMotor, SensorTiming.DIAG_DRIVE_R);
@@ -362,6 +367,7 @@ public class RobotLogger {
 
     // 通常終了時に呼び、バッファを保存してファイルを閉じる。
     public void close() {
+        if (powerTrace != null) { powerTrace.close(); powerTrace = null; }
         if (out == null) return;
         try { out.flush(); } catch (Exception ignored) { }
         try { out.close(); } catch (Exception ignored) { }
@@ -370,7 +376,8 @@ public class RobotLogger {
 
     public String getPath() { return path; }
     public int getRows()    { return rows; }
-    public boolean isFailed() { return failed; }
+    public boolean isFailed() { return failed || powerFailed || (powerTrace != null && !powerTrace.healthy()); }
+    public String getPowerPath() { return powerTrace == null ? "(unavailable)" : powerTrace.path; }
 
     private static int buttons(Gamepad g) {
         int b = 0;
@@ -393,13 +400,36 @@ public class RobotLogger {
 
     // 値の列では例外も0。対応するtm_*_errorsで同じ集計窓の取得失敗を確認する。
     private double cur(DcMotorEx m, int metric) {
-        try { return hw.reads.current(m, metric); } catch (Exception e) { return 0.0; }
+        long start = System.nanoTime(); double value = Double.NaN;
+        try { value = hw.reads.current(m, metric); return value; }
+        catch (Exception e) { return 0.0; }
+        finally { trace(motorName(metric), value, start); }
+    }
+
+    private static String motorName(int metric) {
+        switch (metric) {
+            case SensorTiming.DIAG_DRIVE_L: return "drive_left_A";
+            case SensorTiming.DIAG_DRIVE_R: return "drive_right_A";
+            case SensorTiming.DIAG_SHOOTER_L: return "shooter_left_A";
+            case SensorTiming.DIAG_SHOOTER_R: return "shooter_right_A";
+            case SensorTiming.DIAG_INTAKE: return "intake_A";
+            case SensorTiming.DIAG_EXTEND: return "extend_A";
+            case SensorTiming.DIAG_FEED: return "feed_A";
+            default: return "climb_A";
+        }
+    }
+    private void trace(String label, double value, long start) {
+        if (powerTrace != null) powerTrace.record(label, value, start,
+            !Double.isNaN(value) && !Double.isInfinite(value) && value >= 0, extend, periodMs);
+    }
+    // Called by the existing shooter voltage acquisition; it does not read the sensor again.
+    public void traceVoltage(LynxModule hub, double value, long start) {
+        trace("hub_" + hub.getModuleAddress() + "_" + hub.getSerialNumber() + "_V", value, start);
     }
 
     private double curDc(com.qualcomm.robotcore.hardware.DcMotor m) {
-        try {
-            if (m instanceof DcMotorEx) return hw.reads.current((DcMotorEx) m, SensorTiming.DIAG_FEED);
-        } catch (Exception ignored) { }
+        if (m instanceof DcMotorEx) return cur((DcMotorEx) m, SensorTiming.DIAG_FEED);
+        trace("feed_A", Double.NaN, System.nanoTime());
         return 0.0;
     }
 
@@ -407,7 +437,10 @@ public class RobotLogger {
         double sum = 0.0;
         if (hubs != null) {
             for (LynxModule h : hubs) {
-                try { sum += hw.reads.hubCurrent(h, SensorTiming.DIAG_HUB); } catch (Exception ignored) { }
+                long start = System.nanoTime(); double value = Double.NaN;
+                try { value = hw.reads.hubCurrent(h, SensorTiming.DIAG_HUB); sum += value; }
+                catch (Exception ignored) { }
+                finally { trace("hub_" + h.getModuleAddress() + "_" + h.getSerialNumber() + "_A", value, start); }
             }
         }
         return sum;
@@ -417,11 +450,12 @@ public class RobotLogger {
         double v = Double.POSITIVE_INFINITY;
         if (hubs != null) {
             for (LynxModule h : hubs) {
-
+                long start = System.nanoTime(); double x = Double.NaN;
                 try {
-                    double x = hw.reads.voltage(h, SensorTiming.DIAG_VOLTAGE);
+                    x = hw.reads.voltage(h, SensorTiming.DIAG_VOLTAGE);
                     if (x > 0) v = Math.min(v, x);
                 } catch (Exception ignored) { }
+                finally { traceVoltage(h, x, start); }
             }
         }
         return (v == Double.POSITIVE_INFINITY) ? 0.0 : v;
