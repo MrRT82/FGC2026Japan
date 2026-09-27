@@ -5,6 +5,18 @@ motion_enabled=false
 motor_model=REV_Core_Hex
 gear_ratio=user_reported_10.4_reduction
 balls=-1
+# PID (manual), STEP_POS, STEP_NEG, BREAKAWAY_POS, BREAKAWAY_NEG.
+# Non-PID trials require known balls and train/validation role. No automatic sequence of trials.
+trial_mode=PID
+dataset_role=unspecified
+step_deg=5
+slew_dps=10
+# Verify motor-controller and Hub connection information on telemetry BEFORE selecting this.
+# BREAKAWAY requires the correct motor Hub index; -1 means not assigned.
+motor_hub_index=-1
+ramp_rate_V_per_s=0.4
+ramp_max_delta_V=1.0
+ramp_max_excursion_deg=3.0
 min_angle_deg=1
 max_angle_deg=75
 motor_limit_A=2.0

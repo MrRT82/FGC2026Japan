@@ -14,6 +14,12 @@ public final class ExtendTuneConfig {
     public double gravityCos = .0638, gravityConstant = .0694, gravityPhaseDeg = 17, friction = .123;
     public int balls = -1;
     public String gearRatio = "unknown", motorModel = "unknown";
+    public String trialMode = "PID", datasetRole = "unspecified";
+    public int motorHubIndex = -1;
+    public double stepDeg = 5, slewDps = 10;
+    public double rampRateVps = .4, rampMaxDeltaV = 1, rampMaxExcursionDeg = 3;
+    public boolean rampMode() { return trialMode.startsWith("BREAKAWAY_"); }
+    public int direction() { return trialMode.endsWith("NEG") ? -1 : 1; }
 
     public static ExtendTuneConfig load(File file) throws IOException {
         ExtendTuneConfig c = new ExtendTuneConfig();
@@ -35,6 +41,13 @@ public final class ExtendTuneConfig {
         c.balls = Integer.parseInt(p.getProperty("balls", "-1"));
         c.gearRatio = p.getProperty("gear_ratio", "unknown");
         c.motorModel = p.getProperty("motor_model", "unknown");
+        c.trialMode = p.getProperty("trial_mode", "PID");
+        c.datasetRole = p.getProperty("dataset_role", "unspecified");
+        c.motorHubIndex = Integer.parseInt(p.getProperty("motor_hub_index", "-1"));
+        c.stepDeg = number(p, "step_deg", c.stepDeg); c.slewDps = number(p, "slew_dps", c.slewDps);
+        c.rampRateVps = number(p, "ramp_rate_V_per_s", c.rampRateVps);
+        c.rampMaxDeltaV = number(p, "ramp_max_delta_V", c.rampMaxDeltaV);
+        c.rampMaxExcursionDeg = number(p, "ramp_max_excursion_deg", c.rampMaxExcursionDeg);
         if (c.motionEnabled && !c.valid()) throw new IOException("Invalid motion limits: " + file);
         return c;
     }
@@ -48,7 +61,15 @@ public final class ExtendTuneConfig {
             && positive(minVoltage) && positive(maxPower) && maxPower <= .35
             && finite(kp) && kp >= 0 && finite(ki) && ki >= 0 && finite(kd) && kd >= 0
             && finite(gravityCos) && finite(gravityConstant) && finite(gravityPhaseDeg)
-            && finite(friction) && friction >= 0;
+            && finite(friction) && friction >= 0
+            && (trialMode.equals("PID") || trialMode.equals("STEP_POS") || trialMode.equals("STEP_NEG")
+                || trialMode.equals("BREAKAWAY_POS") || trialMode.equals("BREAKAWAY_NEG"))
+            && (datasetRole.equals("unspecified") || datasetRole.equals("train") || datasetRole.equals("validation"))
+            && positive(stepDeg) && stepDeg <= 5 && positive(slewDps) && slewDps <= 10
+            && rampRateVps >= .1 && rampRateVps <= 1 && positive(rampMaxDeltaV) && rampMaxDeltaV <= 1.5
+            && rampMaxExcursionDeg >= .5 && rampMaxExcursionDeg <= 3
+            && (trialMode.equals("PID") || (balls >= 0 && !datasetRole.equals("unspecified")))
+            && (!rampMode() || motorHubIndex >= 0);
     }
     private static boolean positive(double v) { return finite(v) && v > 0; }
 }

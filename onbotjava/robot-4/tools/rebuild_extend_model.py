@@ -276,6 +276,10 @@ def rebuild(manifest_path, out):
             if rejected: raise ValueError('Incomplete CSV: choose intact trial file; do not bridge missing rows')
             key = digest(path)
             if file['role'] not in ('train', 'validation'): raise ValueError('Invalid dataset role')
+            if meta.get('dataset_role', 'unspecified') not in ('unspecified', file['role']):
+                raise ValueError('Dataset role differs from Java acquisition metadata')
+            if meta.get('motor_hub_voltage_signal', 'unassigned') not in ('unassigned', spec['motor_hub_voltage_signal']):
+                raise ValueError('Voltage column differs from Java motor Hub selection')
             if key in seen_roles and seen_roles[key] != file['role']:
                 raise ValueError('Validation must use a different CSV recording; content hash reused')
             seen_roles[key] = file['role']

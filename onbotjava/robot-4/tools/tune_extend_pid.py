@@ -27,10 +27,11 @@ def simulate_candidate(model, geometry, cfg, candidate, case, volts):
     error_sum, saturated, final_error, max_speed, peak_error = 0., 0, 0., 0., 0.
     low, high = float(cfg['min_angle_deg']), float(cfg['max_angle_deg'])
     power_limit = float(cfg['max_power'])
+    slew_dps = float(cfg.get('slew_dps', '10'))
     for n in range(400):
         goal = center + (case['step_deg'] if n >= 50 else 0)
         goal = clip(goal, max(low + 1, center - 10), min(high - 1, center + 10))
-        target += clip(goal - target, -.2, .2)
+        target += clip(goal - target, -slew_dps*dt, slew_dps*dt)
         error = target - sensor
         integral = clip(integral + error * dt, -.5, .5)
         friction = 0. if filtered_v * (1 if error > 0 else -1 if error < 0 else 0) > 15 else candidate['friction'] * clip(error / 2, -1, 1)
@@ -54,6 +55,7 @@ def simulate_candidate(model, geometry, cfg, candidate, case, volts):
         if not math.isfinite(sensor) or sensor <= low or sensor >= high:
             return None, 'ANGLE_LIMIT'
         if abs(filtered_v) > 45: return None, 'OVERSPEED'
+        if abs(sensor-center) > 10: return None, 'TRAVEL_LIMIT'
         if not model['speed_range_dps'][0] <= v <= model['speed_range_dps'][1]:
             return None, 'SPEED_OUTSIDE_IDENTIFIED_RANGE'
         if not model['angle_range_deg'][0] <= physical <= model['angle_range_deg'][1]:
@@ -86,6 +88,8 @@ def tune(model_path, settings_path, search_path, out):
     values = [float(cfg[k]) for k in ('min_angle_deg', 'max_angle_deg', 'max_power')]
     if not all(map(math.isfinite, values)) or not (0 <= values[0] < values[1] <= 88 and 0 < values[2] <= .35):
         raise ValueError('Invalid Java motion limits')
+    if not math.isfinite(float(cfg.get('slew_dps', '10'))) or not 0 < float(cfg.get('slew_dps', '10')) <= 10:
+        raise ValueError('Invalid Java slew_dps')
     search = json.loads(search_path.read_text(encoding='utf-8-sig'))
     for k in ('max_rmse_deg', 'max_final_error_deg', 'max_peak_error_deg'):
         if not math.isfinite(float(search[k])) or search[k] <= 0: raise ValueError('Positive acceptance limits required')
