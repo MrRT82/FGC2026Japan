@@ -14,6 +14,8 @@ slew_dps=10
 # Verify motor-controller and Hub connection information on telemetry BEFORE selecting this.
 # BREAKAWAY requires the correct motor Hub index; -1 means not assigned.
 motor_hub_index=-1
+# Sign of sensor-angle change for positive motor voltage: same=1, opposite=-1.
+motor_to_angle_sign=1
 ramp_rate_V_per_s=0.4
 ramp_max_delta_V=1.0
 ramp_max_excursion_deg=3.0

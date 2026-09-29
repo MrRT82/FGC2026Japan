@@ -16,6 +16,7 @@ public final class ExtendIdentificationConfig {
     public String gearRatio = "unknown", motorModel = "unknown";
     public String trialMode = "PID", datasetRole = "unspecified";
     public int motorHubIndex = -1;
+    public int motorToAngleSign = 1;
     public double stepDeg = 5, slewDps = 10;
     public double rampRateVps = .4, rampMaxDeltaV = 1, rampMaxExcursionDeg = 3;
     public boolean rampMode() { return trialMode.startsWith("BREAKAWAY_"); }
@@ -44,6 +45,7 @@ public final class ExtendIdentificationConfig {
         c.trialMode = p.getProperty("trial_mode", "PID");
         c.datasetRole = p.getProperty("dataset_role", "unspecified");
         c.motorHubIndex = Integer.parseInt(p.getProperty("motor_hub_index", "-1"));
+        c.motorToAngleSign = Integer.parseInt(p.getProperty("motor_to_angle_sign", "1"));
         c.stepDeg = number(p, "step_deg", c.stepDeg); c.slewDps = number(p, "slew_dps", c.slewDps);
         c.rampRateVps = number(p, "ramp_rate_V_per_s", c.rampRateVps);
         c.rampMaxDeltaV = number(p, "ramp_max_delta_V", c.rampMaxDeltaV);
@@ -68,6 +70,7 @@ public final class ExtendIdentificationConfig {
             && positive(stepDeg) && stepDeg <= 5 && positive(slewDps) && slewDps <= 10
             && rampRateVps >= .1 && rampRateVps <= 1 && positive(rampMaxDeltaV) && rampMaxDeltaV <= 4
             && rampMaxExcursionDeg >= .5 && rampMaxExcursionDeg <= 3
+            && (motorToAngleSign == -1 || motorToAngleSign == 1)
             && (trialMode.equals("PID") || (balls >= 0 && !datasetRole.equals("unspecified")))
             && (!rampMode() || motorHubIndex >= 0);
     }

@@ -121,6 +121,7 @@ public final class ExtendTuneCore {
     private void ramp(long now, double hubVoltage) {
         p = i = d = integral = ff = 0;
         double displacement = angle - rampCenter;
+        int motorDirection = config.direction() * config.motorToAngleSign;
         if (rampNs == 0) {
             if (Math.abs(displacement) > .15) { trip("BASELINE_DRIFT"); return; }
             if (now - baselineNs >= 500_000_000L) { rampNs = now; phase = "RAMP"; event = "RAMP_BEGIN"; lastStillNs = now; }
@@ -129,7 +130,7 @@ public final class ExtendTuneCore {
             if (config.direction() * displacement < -.3) { trip("WRONG_DIRECTION"); return; }
             if (Math.abs(displacement) <= .15) lastStillNs = now;
             if (config.direction() * displacement >= .3) {
-                if (motionCandidateNs == 0) { motionCandidateNs = now; firstMotionNs = now; frozenV = baselineV + config.direction() * rampDeltaV; }
+                if (motionCandidateNs == 0) { motionCandidateNs = now; firstMotionNs = now; frozenV = baselineV + motorDirection * rampDeltaV; }
                 if (confirmedNs == 0 && now - motionCandidateNs >= 100_000_000L) {
                     confirmedNs = now; phase = "POST_MOTION"; event = "MOTION_CONFIRMED";
                 }
@@ -140,7 +141,7 @@ public final class ExtendTuneCore {
                 if (rampDeltaV > config.rampMaxDeltaV || now - rampNs >= 4_000_000_000L) { complete("NO_BREAKAWAY_WITHIN_LIMIT"); return; }
             }
         }
-        commandV = motionCandidateNs != 0 ? frozenV : baselineV + config.direction() * rampDeltaV;
+        commandV = motionCandidateNs != 0 ? frozenV : baselineV + motorDirection * rampDeltaV;
         requested = commandV / hubVoltage;
         if (!ExtendIdentificationConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
         if (Math.abs(requested) > config.maxPower) { complete("OUTPUT_LIMIT_NO_RESULT"); return; }

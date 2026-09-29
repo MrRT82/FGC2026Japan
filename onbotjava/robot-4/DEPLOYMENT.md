@@ -1,5 +1,12 @@
 # 4号機 Blue計測版の配布記録
 
+## 2026-09-29 Tune v5 モーター・角度方向対応
+
+- v4実機試験で、正のモーター電圧に対してセンサー角度が減少することを確認した。開始40.950度、検出40.623度、保持基準1.396V、ランプ増分約1.720V、展開電流最大1.071Aで、従来の誤方向保護が停止した。
+- `motor_to_angle_sign`（1または-1）を追加し、BREAKAWAYの電圧ランプ方向だけへ適用する。角度方向の動作判定、PID/FF、STEPの制御方向は変更しない。4号機の実機設定は-1。
+- PCのJDK17とFTC SDK JARで全58 JavaをJava 8向けにコンパイル成功。ExtendTuneCoreTest 21項目、ExtendIdentificationTest 39項目、ExtendConfigCompatibilityTest 8項目成功。符号1/-1の許可、0/2の拒否、符号-1で正負の角度試験が反対側のモーター電圧へ対応することを確認。
+- 4号機Hub `dddad6c23c4eeb3b`へ3 Javaと設定を転送し、読み戻しSHA-256一致を確認。設定はBREAKAWAY_NEG、motor_to_angle_sign=-1、0.6V/s、最大増分3.0V。Hubビルド成功、空のbuildLog、生成JARのBUILD `20260929_robot4_extend_tune_v5`、Tune／Auto／Sweep／SysIdクラス収録を確認。配布作業ではINIT／START未実施。
+
 ## 2026-09-29 Tune v4 静止摩擦ランプ範囲拡張
 
 - v3実機試験では正負とも最大増分1.0V、負方向1.5Vでも動き出さず、異常なし。保持基準は約1.4V、電流最大0.874A、最低Hub電圧12.415V。
