@@ -10,6 +10,7 @@ public final class ExtendTuneConfig {
     public double minAngle = Double.NaN, maxAngle = Double.NaN;
     public double motorLimitA = Double.NaN, hubLimitA = Double.NaN, minVoltage = Double.NaN;
     public double maxPower = Double.NaN;
+    public double autoMaxPower = Double.NaN;
     public double kp = .0175, ki = .005, kd = 0;
     public double gravityCos = .0638, gravityConstant = .0694, gravityPhaseDeg = 17, friction = .123;
     public int balls = -1;
@@ -30,6 +31,7 @@ public final class ExtendTuneConfig {
         c.hubLimitA = number(p, "hub_limit_A", c.hubLimitA);
         c.minVoltage = number(p, "min_voltage_V", c.minVoltage);
         c.maxPower = number(p, "max_power", c.maxPower);
+        c.autoMaxPower = number(p, "auto_max_power", c.maxPower);
         c.kp = number(p, "kp", c.kp); c.ki = number(p, "ki", c.ki); c.kd = number(p, "kd", c.kd);
         c.gravityCos = number(p, "gravity_cos", c.gravityCos);
         c.gravityConstant = number(p, "gravity_constant", c.gravityConstant);
@@ -69,7 +71,8 @@ public final class ExtendTuneConfig {
     public boolean autoValid() {
         if (!valid() || autoStations.length == 0 || !positive(autoStepDeg) || autoStepDeg > 10
             || !positive(autoHoldS) || !positive(autoStepS) || !positive(autoArriveS)
-            || !positive(autoSlewDps) || autoSlewDps > 30) return false;
+            || !positive(autoSlewDps) || autoSlewDps > 30
+            || !positive(autoMaxPower) || autoMaxPower > .5) return false;
         for (double s : autoStations)
             if (!finite(s) || s - autoStepDeg < minAngle + 2 || s + autoStepDeg > maxAngle - 2) return false;
         return true;

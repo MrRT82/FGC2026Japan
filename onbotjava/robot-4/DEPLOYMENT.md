@@ -1,5 +1,12 @@
 # 4号機 Blue計測版の配布記録
 
+## 2026-09-29 TuneAuto v3 Auto専用出力上限
+
+- v2基準試験の25度から71度への移動は、目標約1.70秒に対して実機が69度へ達するまで約3.46秒、最大誤差33.05度、出力0.35への張り付き87.5%。最大モーター電流1.093A、最低有効Hub電圧12.402Vで、電気保護・Hub再起動なし。
+- 通常Tune、Sweep、SysIdの`max_power=0.35`を維持し、Autoだけに`auto_max_power`を追加。設定上限0.50、初回再試験値0.50。ゲイン、27度/秒、電流・電圧保護は変更しない。
+- PCのJDK17とFTC SDK JARで全58 JavaをJava 8向けにコンパイル成功。ExtendTuneCoreTest 21項目、ExtendIdentificationTest 39項目、ExtendConfigCompatibilityTest 14項目成功。0.50許可、0.5001拒否、Auto専用クランプを確認。
+- 4号機Hub `dddad6c23c4eeb3b`へ3 Javaと設定を転送し、読み戻しSHA-256一致を確認。Hubビルド成功、空のbuildLog、生成JARのBUILD `20260929_robot4_extend_tune_auto_v3`を確認。配布作業ではINIT／START未実施。
+
 ## 2026-09-29 TuneAuto v2 2秒速度基準
 
 - 実機チューニングの目標を、目標角を連続更新しながら最下点から最上点まで約2秒（54度に対して27度/秒）とした。Autoの固定10度/秒を`auto_slew_dps`で設定可能にし、0より大きく30度/秒以下に制限。

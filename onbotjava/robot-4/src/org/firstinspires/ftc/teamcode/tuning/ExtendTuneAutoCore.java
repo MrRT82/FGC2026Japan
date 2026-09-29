@@ -85,7 +85,7 @@ public final class ExtendTuneAutoCore {
             + config.gravityConstant + friction;
         requested = ff + p + i + d;
         if (!ExtendTuneConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
-        sent = Math.max(-config.maxPower, Math.min(config.maxPower, requested));
+        sent = Math.max(-config.autoMaxPower, Math.min(config.autoMaxPower, requested));
         if (Math.abs(angle - stallAngle) >= 1 || Math.abs(error) < 3 || Math.abs(sent) < .1) {
             stallAngle = angle; stallNs = now;
         } else if (now - stallNs > 500_000_000L) trip("NO_MOTION");
