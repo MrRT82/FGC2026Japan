@@ -66,7 +66,7 @@ public final class ExtendIdentificationConfig {
                 || trialMode.equals("BREAKAWAY_POS") || trialMode.equals("BREAKAWAY_NEG"))
             && (datasetRole.equals("unspecified") || datasetRole.equals("train") || datasetRole.equals("validation"))
             && positive(stepDeg) && stepDeg <= 5 && positive(slewDps) && slewDps <= 10
-            && rampRateVps >= .1 && rampRateVps <= 1 && positive(rampMaxDeltaV) && rampMaxDeltaV <= 1.5
+            && rampRateVps >= .1 && rampRateVps <= 1 && positive(rampMaxDeltaV) && rampMaxDeltaV <= 4
             && rampMaxExcursionDeg >= .5 && rampMaxExcursionDeg <= 3
             && (trialMode.equals("PID") || (balls >= 0 && !datasetRole.equals("unspecified")))
             && (!rampMode() || motorHubIndex >= 0);

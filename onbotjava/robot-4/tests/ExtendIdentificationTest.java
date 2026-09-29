@@ -22,6 +22,8 @@ public final class ExtendIdentificationTest {
         cfg.balls = -1; check(!cfg.valid(), "load must be known"); cfg.balls = 0;
         cfg.datasetRole = "unspecified"; check(!cfg.valid(), "role must be recorded"); cfg.datasetRole = "train";
         cfg.rampRateVps = Double.NaN; check(!cfg.valid(), "invalid ramp rate"); cfg.rampRateVps = .4;
+        cfg.rampMaxDeltaV = 4; check(cfg.valid(), "expanded ramp limit accepted");
+        cfg.rampMaxDeltaV = 4.001; check(!cfg.valid(), "ramp above expanded limit rejected"); cfg.rampMaxDeltaV = 1;
         ExtendTuneCore c = new ExtendTuneCore(cfg);
         tick(c, 0, 40, true, "", Double.NaN);
         check(c.sent == 0 && !c.state.equals("ACTIVE"), "no valid voltage no start");

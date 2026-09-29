@@ -1,5 +1,15 @@
 # 4号機 Blue計測版の配布記録
 
+## 2026-09-29 Tune v4 静止摩擦ランプ範囲拡張
+
+- v3実機試験では正負とも最大増分1.0V、負方向1.5Vでも動き出さず、異常なし。保持基準は約1.4V、電流最大0.874A、最低Hub電圧12.415V。
+- ramp_max_delta_Vの検証上限を1.5Vから4.0Vへ拡張。既定1.0V、最大出力0.35、ランプ4秒、試行8秒、最大変位3度、電流・電圧・誤方向保護は維持。
+- PCのJDK17とFTC SDK JARで全58 JavaをJava 8向けにコンパイル成功。ExtendTuneCoreTest 21項目、ExtendIdentificationTest 32項目、ExtendConfigCompatibilityTest 8項目成功。4.0V許可と4.001V拒否を確認。
+- 4号機Hub `dddad6c23c4eeb3b`へExtendIdentificationConfig.javaとExtend_Tune_R4.javaだけを転送し、読み戻しSHA-256一致を確認。
+- 初回Hubビルドはソース監視競合とみられる一時的なbad source fileで失敗し、生成JARはv3のまま維持。ファイル内容・クラス名・ハッシュを確認後、一意のbuildRequestで再ビルドして成功。空のbuildLogと既存OpMode再登録を確認。
+- Hub生成JARのBUILDは`20260929_robot4_extend_tune_v4`。配布作業ではINIT／START未実施。最初の拡張試験設定は正方向0.6V/s、最大増分3.0V。
+- バックアップ、ログ、生成JARは作業領域`robot4_breakaway_v4_20260929`に保存し、Gitには含めない。
+
 ## 2026-09-29 Tune v3 静止判定修正
 
 - 実機BREAKAWAY_POSは角度幅0.082度・誤差最大0.082度で保持していたが、ポテンショメーターの1カウント揺れを微分した速度が-1.59～+1.16度/秒となり、旧0.5度/秒条件によりNOT_SETTLEDとなった。
