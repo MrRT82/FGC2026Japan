@@ -1,5 +1,15 @@
 # 4号機 Blue計測版の配布記録
 
+## 2026-09-29 Tune v3 静止判定修正
+
+- 実機BREAKAWAY_POSは角度幅0.082度・誤差最大0.082度で保持していたが、ポテンショメーターの1カウント揺れを微分した速度が-1.59～+1.16度/秒となり、旧0.5度/秒条件によりNOT_SETTLEDとなった。
+- 静止判定を500ms内の角度幅0.15度以内・誤差0.3度以内・非飽和へ変更。基準電圧固定後も変位0.15度以内で判定する。15度/秒の過速度、最大3度移動、電流・電圧、誤方向などの保護は維持。
+- 実測の41.973度／42.055度交互入力を再現するテストを追加。PCのJDK17とFTC SDK JARで全58 JavaをJava 8向けにコンパイル成功。ExtendTuneCoreTest 21項目、ExtendIdentificationTest 30項目、ExtendConfigCompatibilityTest 8項目成功。
+- 初回PCコンパイルは引数ファイルの相対パス生成不備でソース未検出。ASCII相対パスへ修正後に成功。識別テスト初回は新テストの挿入位置により既存状態を上書きして1項目失敗し、独立した位置へ移して成功。
+- 4号機Hub `dddad6c23c4eeb3b`へExtendTuneCore.javaとExtend_Tune_R4.javaだけを転送。読み戻しSHA-256一致、OnBotJavaビルド成功、空のbuildLog、既存OpMode再登録を確認。
+- Hub生成JARのBUILDは`20260929_robot4_extend_tune_v3`。設定はmotion_enabled=true、BREAKAWAY_POS、train、motor_hub_index=0を保持。INIT／STARTは配布作業では行っていない。
+- 実機でのv3 BREAKAWAY_POS再試験は未実施。バックアップ、ログ、生成JARは作業領域`robot4_breakaway_fix_20260929`に保存し、Gitには含めない。
+
 ## 2026-09-29 Tune v2・現地追加機能との統合
 
 - 対象は4号機Hub `dddad6c23c4eeb3b`。転送前にADBの`ro.serialno`一致を確認。

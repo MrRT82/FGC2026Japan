@@ -35,6 +35,10 @@ public final class ExtendIdentificationTest {
         double voltageCommand = c.commandV;
         tick(c,86,40,true,"",11.5);
         check(Math.abs(c.sent * 11.5 - (voltageCommand + .008)) < 1e-9, "voltage normalization");
+        c = new ExtendTuneCore(cfg);
+        for (int n = 0; n <= 85; n++)
+            tick(c, n, n % 2 == 0 ? 41.972727272727276 : 42.054545454545455, true, "", 12);
+        check(c.phase.equals("RAMP"), "quantized stationary sensor reaches ramp");
         tick(c,87,40,false,"",12);
         check(c.sent == 0 && c.stopReason.equals("DEADMAN_RELEASE"), "ramp deadman release");
         tick(c,88,40,true,"",12); check(c.sent == 0, "no automatic restart");

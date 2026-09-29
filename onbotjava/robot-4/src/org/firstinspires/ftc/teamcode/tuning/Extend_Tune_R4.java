@@ -12,7 +12,7 @@ import java.util.*;
 /** Robot 4 only: current logging and small supervised extension trials. */
 @TeleOp(name="Extend_Tune_R4", group="1_DIAG")
 public final class Extend_Tune_R4 extends LinearOpMode {
-    public static final String BUILD = "20260927_robot4_extend_tune_v2";
+    public static final String BUILD = "20260929_robot4_extend_tune_v3";
     private static final long PERIOD_NS = 20_000_000L;
     private static final double MAX_AGE_MS = 250;
     private static final class Reading {
@@ -70,7 +70,7 @@ public final class Extend_Tune_R4 extends LinearOpMode {
             w.println("motor_port=" + motor.getPortNumber());
             w.println("ramp_rate_V_per_s=" + c.rampRateVps); w.println("ramp_max_delta_V=" + c.rampMaxDeltaV);
             w.println("ramp_max_excursion_deg=" + c.rampMaxExcursionDeg);
-            w.println("ramp_stationary_window_ms=500; max_span_deg=0.15; max_velocity_dps=0.5");
+            w.println("ramp_stationary_window_ms=500; max_span_deg=0.15; method=angle_span");
             w.println("ramp_onset_displacement_deg=0.3; confirm_ms=100; post_confirm_ms=150");
             w.println("angle_conversion=voltage/maxVoltage*135; offset=0");
             w.println("zero_power=BRAKE; not a mechanical holding brake");

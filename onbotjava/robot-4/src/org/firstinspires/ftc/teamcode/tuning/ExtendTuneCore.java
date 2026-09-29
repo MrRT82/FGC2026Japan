@@ -100,7 +100,10 @@ public final class ExtendTuneCore {
         else if (now - stallNs > 500_000_000L) { trip("NO_MOTION"); return; }
         if (config.rampMode()) {
             // Capture a steady 0.5s holding effort; freeze it before the ramp so PID cannot cancel excitation.
-            if (Math.abs(velocity) > .5 || Math.abs(error) > .3 || Math.abs(requested) >= config.maxPower) {
+            // The potentiometer changes in discrete steps. Differentiating a one-count change can
+            // report more than 1 deg/s while the mechanism is stationary, so use the bounded angle
+            // window as the stationary test. The independent 15 deg/s overspeed guard remains active.
+            if (Math.abs(error) > .3 || Math.abs(requested) >= config.maxPower) {
                 quietNs = 0; quietCount = 0;
             } else {
                 if (quietNs == 0 || Math.max(quietMax, angle) - Math.min(quietMin, angle) > .15) {
@@ -119,7 +122,7 @@ public final class ExtendTuneCore {
         p = i = d = integral = ff = 0;
         double displacement = angle - rampCenter;
         if (rampNs == 0) {
-            if (Math.abs(displacement) > .15 || Math.abs(velocity) > .5) { trip("BASELINE_DRIFT"); return; }
+            if (Math.abs(displacement) > .15) { trip("BASELINE_DRIFT"); return; }
             if (now - baselineNs >= 500_000_000L) { rampNs = now; phase = "RAMP"; event = "RAMP_BEGIN"; lastStillNs = now; }
         }
         if (rampNs != 0) {
