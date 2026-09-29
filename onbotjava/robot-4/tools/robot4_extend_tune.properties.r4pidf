@@ -1,6 +1,6 @@
 # Robot 4 only. Extend_TuneAuto_R4 settings from tools/r4_pidf_tune.py (2026-09-29 data).
 # kp 0.14 / kd 0.001 chattered on the robot (run 11, backlash); halved to kp 0.07, kd 0.
-# Copy to /sdcard/FIRST/robot4_extend_tune.properties. Simulation-selected; NOT yet run on the robot.
+# Copy to /sdcard/FIRST/robot4_extend_tune.properties. Confirmed on the robot by run 12 (2026-09-29).
 # The tuning OpModes enforce NO angle, current, voltage, speed or power limits in this build.
 # Stops are only: release RB, press B, logger failure, invalid angle, loop delay.
 # Confirm INIT telemetry first, then change motion_enabled to true.

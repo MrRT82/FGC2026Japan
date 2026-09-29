@@ -42,6 +42,18 @@ This section supersedes "Current decision" and the electrical-guard point above.
 8. Test the downward move only after the upward result has been reviewed. The downward model is the least supported.
 9. Do not copy these gains to the normal Robot 4 OpModes or to Robot 3 until they have been validated on the robot.
 
+## Confirmed gains (run 12)
+
+Run 12 (`tuning-data/2026-09-29/12_auto_v4nl_kp007_complete_accepted.csv`) completed the whole Auto schedule with no fault. The gains are kp 0.07, ki 0.005, kd 0, friction 0.126, `auto_kv_up=0.0028`, `auto_kv_down=0`, gravity `0.202*cos(q+17)+0.045`, and a 27 deg/s slew.
+
+- The move from 25 to 71 degrees took 1.70 s to arrive within 1.5 degrees, against 1.74 s simulated. The output never reversed during the move, and the largest backward step was 0.12 degrees.
+- At 71 degrees the arm overshot to 72.9 degrees once and held at 70.4 degrees (0.6 degree error). The +/-2 degree steps ended within 1 degree.
+- The largest sampled motor current was 1.20 A, and the lowest Hub voltage was 12.14 V.
+- Speed still pulses between about 4 and 60 deg/s during the move (stick-slip), so tracking lag reaches 2-6 degrees. This comes from the mechanism, not from a gain, and it did not cause reversal.
+- Run 11 (kp 0.14, kd 0.001) chattered from backlash and is rejected.
+
+These gains are confirmed for `Extend_TuneAuto_R4` only. They have not yet been ported to the normal Robot 4 OpModes, which still need a separately reviewed change. They do not apply to Robot 3.
+
 ## Reproduction and verification
 
 Use `manifest.csv` to verify each raw CSV with SHA-256 before analysis. The accepted negative breakaway evidence is file 06. Files 07 through 10 are the automatic trajectory sequence used for the current control decision. File 04 is excluded because the deadman control was released; files 01 through 05 otherwise remain useful only as reference evidence for direction mapping and friction variability.
