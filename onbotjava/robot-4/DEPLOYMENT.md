@@ -1,5 +1,12 @@
 # 4号機 Blue計測版の配布記録
 
+## 2026-09-29 TuneAuto v4 上昇速度FF
+
+- Auto v3の25度から71度への移動は約2.21秒（平均約20.2度/秒、54度換算約2.67秒）、最大誤差16.28度、出力0.50への張り付き46%。最大瞬間速度44.55度/秒、最大電流1.111A、最低Hub電圧12.314Vで保護停止・Hub再起動なし。
+- 上昇中だけ`auto_kv_up * target_velocity`をFFへ追加。初回`auto_kv_up=0.010 duty/(deg/s)`で27度/秒時に+0.27。下降は0、Auto最大出力0.50、ゲインと全保護は維持。
+- PCのJDK17とFTC SDK JARで全58 JavaをJava 8向けにコンパイル成功。ExtendTuneCoreTest 21項目、ExtendIdentificationTest 43項目、ExtendConfigCompatibilityTest 17項目成功。速度FF即時適用、0.02許可、0.02001拒否、出力クランプを確認。
+- 4号機Hub `dddad6c23c4eeb3b`へ3 Javaと設定を転送し、読み戻しSHA-256一致を確認。Hubビルド成功、空のbuildLog、生成JARのBUILD `20260929_robot4_extend_tune_auto_v4`を確認。配布作業ではINIT／START未実施。
+
 ## 2026-09-29 Tune v6 単純静止摩擦ランプ
 
 - 取得済み試験では保持電圧約1.26～1.40V、正モーター電圧側の動き始め候補は総指令約2.9～3.3V。方向・100ms持続判定が機構の遊びまたは弾性による戻りで中断し、負電圧側は未確定。

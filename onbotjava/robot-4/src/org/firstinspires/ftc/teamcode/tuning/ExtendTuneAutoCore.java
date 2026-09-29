@@ -73,7 +73,9 @@ public final class ExtendTuneAutoCore {
             else if (station + 1 < config.autoStations.length) enter(station + 1, 0, now);
             else { state = "COMPLETE"; segment = "DONE"; zero(); return; }
         }
+        double previousTarget = target;
         target += Math.max(-config.autoSlewDps * dt, Math.min(config.autoSlewDps * dt, goal - target));
+        double targetVelocity = (target - previousTarget) / dt;
         double error = target - angle;
         integral = Math.max(-.5, Math.min(.5, integral + error * dt));
         p = config.kp * error; i = config.ki * integral;
@@ -82,7 +84,7 @@ public final class ExtendTuneAutoCore {
         double friction = velocity * Math.signum(error) > 15 ? 0
             : config.friction * Math.max(-1, Math.min(1, error / 2));
         ff = config.gravityCos * Math.cos(Math.toRadians(angle + config.gravityPhaseDeg))
-            + config.gravityConstant + friction;
+            + config.gravityConstant + friction + config.autoKvUp * Math.max(0, targetVelocity);
         requested = ff + p + i + d;
         if (!ExtendTuneConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
         sent = Math.max(-config.autoMaxPower, Math.min(config.autoMaxPower, requested));

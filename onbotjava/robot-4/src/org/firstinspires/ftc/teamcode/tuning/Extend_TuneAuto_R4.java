@@ -15,7 +15,7 @@ import java.util.*;
  */
 @TeleOp(name="Extend_TuneAuto_R4", group="1_DIAG")
 public final class Extend_TuneAuto_R4 extends LinearOpMode {
-    public static final String BUILD = "20260929_robot4_extend_tune_auto_v3";
+    public static final String BUILD = "20260929_robot4_extend_tune_auto_v4";
     private static final long PERIOD_NS = 20_000_000L;
     private static final double MAX_AGE_MS = 250;
     private static final class Reading {
@@ -69,6 +69,7 @@ public final class Extend_TuneAuto_R4 extends LinearOpMode {
             w.println("auto_stations=" + c.autoStationsText()); w.println("auto_step_deg=" + c.autoStepDeg);
             w.println("auto_hold_s=" + c.autoHoldS); w.println("auto_step_s=" + c.autoStepS);
             w.println("auto_arrive_s=" + c.autoArriveS); w.println("auto_slew_dps=" + c.autoSlewDps);
+            w.println("auto_kv_up=" + c.autoKvUp);
             w.println("angle_conversion=voltage/maxVoltage*135; offset=0");
             w.println("zero_power=BRAKE; not a mechanical holding brake");
             for (int n = 0; n < hubs.size(); n++) w.println("hub_" + n + "=" + hubs.get(n).getConnectionInfo());
@@ -160,6 +161,7 @@ public final class Extend_TuneAuto_R4 extends LinearOpMode {
                                       stationDeg, core.segment);
                     telemetry.addData("Target slew", "%.1f deg/s", config.autoSlewDps);
                     telemetry.addData("Auto max power", "%.2f", config.autoMaxPower);
+                    telemetry.addData("Auto kV up", "%.4f", config.autoKvUp);
                     telemetry.addData("Electrical", powerFault);
                     telemetry.addData("Angle / target / goal", "%.2f / %.2f / %.2f", angle, core.target, core.goal);
                     telemetry.addData("Out = ff + p + i", "%.3f = %.3f + %.3f + %.3f", core.sent, core.ff, core.p, core.i);

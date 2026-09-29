@@ -18,6 +18,7 @@ public final class ExtendTuneConfig {
     /** Extend_TuneAuto_R4 schedule (ignored by Extend_Tune_R4). */
     public double[] autoStations = {30, 45, 60};
     public double autoStepDeg = 5, autoHoldS = 3, autoStepS = 4, autoArriveS = 8, autoSlewDps = 10;
+    public double autoKvUp;
 
     public static ExtendTuneConfig load(File file) throws IOException {
         ExtendTuneConfig c = new ExtendTuneConfig();
@@ -51,6 +52,7 @@ public final class ExtendTuneConfig {
         c.autoStepS = number(p, "auto_step_s", c.autoStepS);
         c.autoArriveS = number(p, "auto_arrive_s", c.autoArriveS);
         c.autoSlewDps = number(p, "auto_slew_dps", c.autoSlewDps);
+        c.autoKvUp = number(p, "auto_kv_up", 0);
         if (c.motionEnabled && !c.valid()) throw new IOException("Invalid motion limits: " + file);
         return c;
     }
@@ -72,7 +74,8 @@ public final class ExtendTuneConfig {
         if (!valid() || autoStations.length == 0 || !positive(autoStepDeg) || autoStepDeg > 10
             || !positive(autoHoldS) || !positive(autoStepS) || !positive(autoArriveS)
             || !positive(autoSlewDps) || autoSlewDps > 30
-            || !positive(autoMaxPower) || autoMaxPower > .5) return false;
+            || !positive(autoMaxPower) || autoMaxPower > .5
+            || !finite(autoKvUp) || autoKvUp < 0 || autoKvUp > .02) return false;
         for (double s : autoStations)
             if (!finite(s) || s - autoStepDeg < minAngle + 2 || s + autoStepDeg > maxAngle - 2) return false;
         return true;

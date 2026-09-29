@@ -41,3 +41,4 @@ auto_step_s=1.5
 auto_arrive_s=4
 auto_slew_dps=27
 auto_max_power=0.35
+auto_kv_up=0
