@@ -81,6 +81,7 @@ final class ExtendSysIdLog {
             w.println("motor_hub_voltage_signal=" + voltageSignal(motorHub));
             w.println("command=effort_V/motor_hub_V; open loop; no PID");
             w.println("angle_conversion=mean(voltage)/maxVoltage*135; offset=0; pot_max_V=" + potMaxV);
+            w.println("limits=none; limit settings above are recorded only; min/max angle plan the event walk");
             w.println("zero_power=BRAKE; not a mechanical holding brake");
             for (int n = 0; n < hubInfo.size(); n++) w.println("hub_" + n + "=" + hubInfo.get(n));
             if (w.checkError()) throw new IOException("Metadata write failed");

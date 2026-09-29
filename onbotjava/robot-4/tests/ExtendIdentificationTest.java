@@ -22,8 +22,9 @@ public final class ExtendIdentificationTest {
         cfg.balls = -1; check(!cfg.valid(), "load must be known"); cfg.balls = 0;
         cfg.datasetRole = "unspecified"; check(!cfg.valid(), "role must be recorded"); cfg.datasetRole = "train";
         cfg.rampRateVps = Double.NaN; check(!cfg.valid(), "invalid ramp rate"); cfg.rampRateVps = .4;
-        cfg.rampMaxDeltaV = 4; check(cfg.valid(), "expanded ramp limit accepted");
-        cfg.rampMaxDeltaV = 4.001; check(!cfg.valid(), "ramp above expanded limit rejected"); cfg.rampMaxDeltaV = 1;
+        cfg.rampRateVps = 5; cfg.stepDeg = 30; cfg.slewDps = 200; cfg.maxPower = Double.NaN;
+        check(cfg.valid(), "no ramp, step, slew or power caps");
+        cfg.rampRateVps = .4; cfg.stepDeg = 5; cfg.slewDps = 10;
         cfg.motorToAngleSign = -1; check(cfg.valid(), "reversed motor-angle sign accepted");
         cfg.motorToAngleSign = 0; check(!cfg.valid(), "zero motor-angle sign rejected");
         cfg.motorToAngleSign = 2; check(!cfg.valid(), "non-unit motor-angle sign rejected");
@@ -58,7 +59,7 @@ public final class ExtendIdentificationTest {
         check(c.sent == 0 && c.stopReason.equals("BREAKAWAY_RECORDED"), "record then zero");
         c = new ExtendTuneCore(cfg);
         for(int n=0;n<=350;n++) tick(c,n,40,true,"",12);
-        check(c.sent == 0 && c.stopReason.equals("NO_BREAKAWAY_WITHIN_LIMIT"), "bounded static dwell");
+        check(c.phase.equals("RAMP") && c.fault.isEmpty() && c.sent > 0, "ramp has no delta or time cap");
         c = new ExtendTuneCore(config("BREAKAWAY_NEG"));
         for(int n=0;n<=100;n++) tick(c,n,40,true,"",12);
         check(c.commandV < c.baselineV, "negative ramp decreases signed effort");
@@ -92,8 +93,8 @@ public final class ExtendIdentificationTest {
         tick(c,56,40.2,true,"",12); check(c.fault.equals("BASELINE_DRIFT"), "freeze drift abort");
         c = new ExtendTuneCore(cfg);
         for(int n=0;n<=100;n++) tick(c,n,40,true,"",12);
-        tick(c,101,40,true,"MOTOR_CURRENT",12);
-        check(c.fault.equals("MOTOR_CURRENT") && c.sent == 0, "ramp current guard retained");
+        tick(c,101,40,true,"ANGLE_READ_DELAY",12);
+        check(c.fault.equals("ANGLE_READ_DELAY") && c.sent == 0, "reported fault stops ramp");
         c = new ExtendTuneCore(cfg);
         for(int n=0;n<=150;n++) tick(c,n,40+n*.01,true,"",12);
         check(c.sent == 0 && !c.fault.isEmpty(), "cannot settle refuses ramp");
@@ -104,7 +105,7 @@ public final class ExtendIdentificationTest {
         tick(c,50,40,true,"",12);
         check(c.goal == 35 && Math.abs(c.target-39.96)<1e-9 && c.event.equals("TARGET_STEP"), "scripted step and configured slew");
         c = new ExtendTuneCore(cfg); tick(c,0,3,true,"",12);
-        check(c.fault.equals("TRIAL_RANGE") && c.sent == 0, "reject insufficient clearance before motion");
+        check(c.state.equals("ACTIVE") && c.fault.isEmpty(), "no clearance check before motion");
         cfg = config("BREAKAWAY_POS");
         c = new ExtendTuneCore(cfg);
         for(int n=0;n<=100;n++) tick(c,n,40,true,"",12);
@@ -114,10 +115,10 @@ public final class ExtendIdentificationTest {
         for(int n=0;n<=100;n++) tick(c,n,40,true,"",12);
         c.update(40,3_200_000_000L,true,false,0,"",true,12);
         check(c.sent == 0 && c.fault.equals("LOOP_DELAY"), "ramp loop delay stop");
-        cfg.maxPower = .101;
         c = new ExtendTuneCore(cfg);
         for(int n=0;n<=100;n++) tick(c,n,40,true,"",12);
-        check(c.sent == 0 && c.stopReason.equals("OUTPUT_LIMIT_NO_RESULT"), "ramp clips are not a valid threshold result");
+        tick(c,101,40,true,"",1);
+        check(c.sent == 0 && c.stopReason.equals("FULL_DUTY_NO_RESULT"), "ramp past full duty is not a valid threshold result");
         System.out.println("ExtendIdentificationTest passed: " + checks);
     }
 }

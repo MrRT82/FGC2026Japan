@@ -1,16 +1,19 @@
 package org.firstinspires.ftc.teamcode.tuning;
 
-/** Operator-held identification trials; no automatic gain changes or jam reversal. */
+/**
+ * Operator-held identification trials; no automatic gain changes or jam reversal.
+ * No angle, speed, travel, time, stall or output limits beyond +/-1.
+ */
 public final class ExtendTuneCore {
     final ExtendIdentificationConfig config;
     public String state = "MONITOR", fault = "", phase = "IDLE", event = "", stopReason = "";
     public double angle, velocity, target, goal, sent, requested, ff, p, i, d, dt;
     public double trialMs = -1, baselineV = Double.NaN, rampDeltaV, commandV = Double.NaN;
     public long trialId, lastStillNs, firstMotionNs;
-    private double previousAngle, previousError, integral, center, stallAngle;
+    private double previousAngle, previousError, integral, center;
     private double quietMin, quietMax, quietSumV, rampCenter, frozenV;
     private int quietCount;
-    private long previousNs, startedNs, stallNs, quietNs, baselineNs, rampNs, motionCandidateNs, confirmedNs;
+    private long previousNs, startedNs, quietNs, baselineNs, rampNs, motionCandidateNs, confirmedNs;
     private boolean initialized;
     public ExtendTuneCore(ExtendIdentificationConfig config) { this.config = config; }
     public void trip(String reason) {
@@ -34,7 +37,7 @@ public final class ExtendTuneCore {
                        int targetStep, String electricalFault, boolean writerOk, double hubVoltage) {
         event = "";
         dt = initialized ? (now - previousNs) / 1e9 : .020;
-        if (!ExtendIdentificationConfig.finite(observed) || observed < -5 || observed > 90) { trip("ANGLE_INVALID"); return; }
+        if (!ExtendIdentificationConfig.finite(observed)) { trip("ANGLE_INVALID"); return; }
         angle = observed;
         if (!initialized) { previousAngle = angle; target = goal = angle; }
         if (initialized && (dt < .002 || dt > .100)) {
@@ -49,35 +52,25 @@ public final class ExtendTuneCore {
         }
         if (!fault.isEmpty()) { zero(); return; }
         if (!config.motionEnabled || !config.valid() || !deadman) { release(); return; }
-        if (angle <= config.minAngle || angle >= config.maxAngle) { trip("ANGLE_LIMIT"); return; }
-        if (config.rampMode() && (!ExtendIdentificationConfig.finite(hubVoltage) || hubVoltage < config.minVoltage || hubVoltage > 16)) {
+        // The ramp divides by this reading; it is a measurement check, not a voltage limit.
+        if (config.rampMode() && (!ExtendIdentificationConfig.finite(hubVoltage) || hubVoltage <= 0)) {
             if (state.equals("ACTIVE")) trip("RAMP_VOLTAGE_INVALID"); else release();
             return;
         }
         if (startEdge && !state.equals("ACTIVE")) {
             center = target = goal = angle; integral = previousError = 0;
-            velocity = 0; stallAngle = angle; stallNs = startedNs = now;
+            velocity = 0; startedNs = now;
             quietNs = baselineNs = rampNs = motionCandidateNs = confirmedNs = lastStillNs = firstMotionNs = 0;
             quietCount = 0; baselineV = Double.NaN; rampDeltaV = 0; stopReason = "";
-            if (!config.trialMode.equals("PID")) {
-                double travel = config.rampMode() ? config.rampMaxExcursionDeg : config.stepDeg;
-                if (angle - travel < config.minAngle + 1 || angle + travel > config.maxAngle - 1) {
-                    trip("TRIAL_RANGE"); return;
-                }
-            }
             trialId++; state = "ACTIVE"; phase = "SETTLE"; event = "TRIAL_START";
         }
         if (!state.equals("ACTIVE")) { zero(); return; }
         trialMs = (now - startedNs) / 1e6;
-        if (now - startedNs >= 8_000_000_000L) { complete(config.rampMode() ? "TIME_LIMIT_NO_RESULT" : "TIME_LIMIT"); return; }
-        if (Math.abs(velocity) > (config.rampMode() ? 15 : 45)) { trip("OVERSPEED"); return; }
-        if (Math.abs(angle - center) > (config.rampMode() ? config.rampMaxExcursionDeg : 10)) { trip("TRAVEL_LIMIT"); return; }
         if (config.rampMode() && baselineNs != 0) {
             ramp(now, hubVoltage); return;
         }
         if (config.trialMode.equals("PID")) {
-            double low = Math.max(config.minAngle + 1, center - 10), high = Math.min(config.maxAngle - 1, center + 10);
-            goal = Math.max(low, Math.min(high, goal + targetStep * config.stepDeg));
+            goal += targetStep * config.stepDeg;
             phase = "PID";
             if (targetStep != 0) event = "TARGET_STEP";
         } else if (!config.rampMode()) {
@@ -94,16 +87,14 @@ public final class ExtendTuneCore {
         ff = config.gravityCos * Math.cos(Math.toRadians(angle + config.gravityPhaseDeg)) + config.gravityConstant + friction;
         requested = ff + p + i + d;
         if (!ExtendIdentificationConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
-        sent = Math.max(-config.maxPower, Math.min(config.maxPower, requested));
+        sent = Math.max(-1, Math.min(1, requested));
         commandV = sent * hubVoltage;
-        if (Math.abs(angle - stallAngle) >= 1 || Math.abs(error) < 3 || Math.abs(sent) < .1) { stallAngle = angle; stallNs = now; }
-        else if (now - stallNs > 500_000_000L) { trip("NO_MOTION"); return; }
         if (config.rampMode()) {
             // Capture a steady 0.5s holding effort; freeze it before the ramp so PID cannot cancel excitation.
             // The potentiometer changes in discrete steps. Differentiating a one-count change can
             // report more than 1 deg/s while the mechanism is stationary, so use the bounded angle
-            // window as the stationary test. The independent 15 deg/s overspeed guard remains active.
-            if (Math.abs(error) > .3 || Math.abs(requested) >= config.maxPower) {
+            // window as the stationary test.
+            if (Math.abs(error) > .3 || Math.abs(requested) >= 1) {
                 quietNs = 0; quietCount = 0;
             } else {
                 if (quietNs == 0 || Math.max(quietMax, angle) - Math.min(quietMin, angle) > .15) {
@@ -141,15 +132,13 @@ public final class ExtendTuneCore {
                 }
             } else if (motionCandidateNs != 0) { trip("MOTION_NOT_SUSTAINED"); return; }
             if (confirmedNs != 0 && now - confirmedNs >= 150_000_000L) { complete("BREAKAWAY_RECORDED"); return; }
-            if (motionCandidateNs == 0) {
-                rampDeltaV = config.rampRateVps * (now - rampNs) / 1e9;
-                if (rampDeltaV > config.rampMaxDeltaV || now - rampNs >= 4_000_000_000L) { complete("NO_BREAKAWAY_WITHIN_LIMIT"); return; }
-            }
+            if (motionCandidateNs == 0) rampDeltaV = config.rampRateVps * (now - rampNs) / 1e9;
         }
         commandV = motionCandidateNs != 0 ? frozenV : baselineV + motorDirection * rampDeltaV;
         requested = commandV / hubVoltage;
         if (!ExtendIdentificationConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
-        if (Math.abs(requested) > config.maxPower) { complete("OUTPUT_LIMIT_NO_RESULT"); return; }
+        // Full duty cannot be exceeded; a clipped ramp is no longer the commanded ramp.
+        if (Math.abs(requested) > 1) { complete("FULL_DUTY_NO_RESULT"); return; }
         sent = requested;
     }
 }

@@ -15,10 +15,8 @@ import java.util.*;
  */
 @TeleOp(name="Extend_SysId_R4", group="1_DIAG")
 public final class Extend_SysId_R4 extends LinearOpMode {
-    public static final String BUILD = "20260927_robot4_extend_sysid_v1";
+    public static final String BUILD = "20260927_robot4_extend_sysid_v1_nolimits";
     private static final long PERIOD_NS = 20_000_000L;
-    /** Non-motor-Hub signals are read every other loop in rotation; 400 ms covers three Hubs. */
-    private static final double OTHER_MAX_AGE_MS = 400;
 
     private static void acquire(ExtendSysIdLog.Reading r, DcMotorEx motor, List<LynxModule> hubs,
                                 int index, long origin) {
@@ -36,17 +34,6 @@ public final class Extend_SysId_R4 extends LinearOpMode {
         r.stampMs = (end - origin) / 1e6; r.durationMs = (end - start) / 1e6; r.seq++;
     }
 
-    private static String electricalFault(ExtendSysIdLog.Reading[] readings, double nowMs, ExtendSysIdConfig c) {
-        for (int n = 0; n < readings.length; n++) {
-            ExtendSysIdLog.Reading r = readings[n];
-            double age = r.age(nowMs);
-            if (!r.ok || age < 0 || age > OTHER_MAX_AGE_MS || r.durationMs > 100) return "ELECTRICAL_STALE_OR_INVALID";
-            if (n == 0 && r.value > c.motorLimitA) return "MOTOR_CURRENT";
-            if (n > 0 && n % 2 == 1 && r.value < c.minVoltage) return "LOW_VOLTAGE_HUB_" + ((n - 1) / 2);
-            if (n > 0 && n % 2 == 0 && r.value > c.hubLimitA) return "HUB_CURRENT_" + ((n - 1) / 2);
-        }
-        return "";
-    }
 
     /** Hub that powers the extension motor: configured index, else matched by connection info. */
     private static int motorHub(ExtendSysIdConfig c, DcMotorEx motor, List<LynxModule> hubs) throws IOException {
@@ -125,8 +112,7 @@ public final class Extend_SysId_R4 extends LinearOpMode {
                 loop++;
                 long now = System.nanoTime();
                 double nowMs = (now - origin) / 1e6;
-                String powerFault = electricalFault(readings, nowMs, config);
-                if (angleReadMs > 100 || now - angleEnd > 100_000_000L) powerFault = "ANGLE_READ_DELAY";
+                String powerFault = angleReadMs > 100 || now - angleEnd > 100_000_000L ? "ANGLE_READ_DELAY" : "";
                 boolean active = isStarted() && !isStopRequested();
                 boolean deadman = active && gamepad1.right_bumper && !gamepad1.b;
                 boolean start = gamepad1.a && !wasA;
@@ -146,7 +132,7 @@ public final class Extend_SysId_R4 extends LinearOpMode {
                     telemetry.addData("Build", BUILD);
                     telemetry.addData("Mode", config.motionEnabled
                         ? "RB held + A: automatic up/down events; release RB: pause; B: latch stop"
-                        : "MONITOR ONLY - identification limits not enabled");
+                        : "MONITOR ONLY - motion_enabled=false");
                     telemetry.addData("State", core.state + " " + core.fault + " " + core.endReason);
                     telemetry.addData("Event", "%d/%d %s dir %d scale %.2f", core.event + 1, config.maxEvents,
                                       core.phase, core.direction, core.scale);

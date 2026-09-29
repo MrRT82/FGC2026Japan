@@ -1,0 +1,529 @@
+{
+  "grid": {
+    "kp": [
+      0.0175,
+      0.035,
+      0.05,
+      0.07,
+      0.1,
+      0.14,
+      0.2
+    ],
+    "ki": [
+      0,
+      0.005,
+      0.02,
+      0.05
+    ],
+    "kd": [
+      0,
+      0.0005,
+      0.001,
+      0.002
+    ],
+    "friction": [
+      0.06288756031182587,
+      0.12577512062365173,
+      0.16568818676747143
+    ],
+    "kv_up": [
+      0,
+      0.0028273805811601356,
+      0.005654761162320271,
+      0.008482141743480408
+    ],
+    "kv_down": [
+      0,
+      0.0028273805811601356,
+      0.005654761162320271
+    ]
+  },
+  "nominal_pass": 3720,
+  "candidates": [
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0.005,
+        "kd": 0.001,
+        "friction": 0.12577512062365173,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.68,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.12453023986915923,
+        "peak_dps": 35.31407297415484,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5850522256156226,
+        "cost": 1.7437925379727812,
+        "move": "25->71"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6400000000000001,
+        "overshoot_deg": 0.5820882248978734,
+        "final_err_deg": 0.5820882248978734,
+        "peak_dps": 40.66443245112468,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.45951871123440663,
+        "cost": 2.222949213524308,
+        "move": "25->71"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.68,
+          "overshoot_deg": 0.11747677002531631
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.23612114988797828
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0.005,
+        "kd": 0.001,
+        "friction": 0.16568818676747143,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.6600000000000001,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.09036029173516624,
+        "peak_dps": 33.24519201399043,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5809667009436772,
+        "cost": 1.7067105587294364,
+        "move": "25->71"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6400000000000001,
+        "overshoot_deg": 0.5843248206766987,
+        "final_err_deg": 0.5843248206766987,
+        "peak_dps": 41.075611482025494,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.46758529710542435,
+        "cost": 2.2252590626124755,
+        "move": "25->71"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.65,
+          "overshoot_deg": 0.1621437312626668
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.22121318725879746
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0.02,
+        "kd": 0.002,
+        "friction": 0.12577512062365173,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.6600000000000001,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.08841675938960236,
+        "peak_dps": 31.47646695309708,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.551405497250409,
+        "cost": 1.705747398177922,
+        "move": "25->71"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6400000000000001,
+        "overshoot_deg": 0.5915099318316948,
+        "final_err_deg": 0.5915099318316948,
+        "peak_dps": 41.36674533355849,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.45840431116458186,
+        "cost": 2.2323278949389063,
+        "move": "25->71"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.65,
+          "overshoot_deg": 0.06465160857480612
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.1768720272520028
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0.005,
+        "kd": 0.001,
+        "friction": 0.06288756031182587,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.68,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.13175680076588492,
+        "peak_dps": 32.943609972725135,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5966477262748604,
+        "cost": 1.7474015916493144,
+        "move": "25->71"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6600000000000001,
+        "overshoot_deg": 0.6200650974526347,
+        "final_err_deg": 0.6198288039796473,
+        "peak_dps": 40.09474518563063,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5562237413867065,
+        "cost": 2.2810242999962815,
+        "move": "71->25"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.65,
+          "overshoot_deg": 0.17732595793497552
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.18344980433099778
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0.02,
+        "kd": 0.002,
+        "friction": 0.16568818676747143,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.6600000000000001,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.09198016469463255,
+        "peak_dps": 32.57128501978468,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5504080758702437,
+        "cost": 1.7075322258888908,
+        "move": "25->71"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6400000000000001,
+        "overshoot_deg": 0.641609334634694,
+        "final_err_deg": 0.641609334634694,
+        "peak_dps": 43.76865865204761,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.49588099974878064,
+        "cost": 2.282450988762173,
+        "move": "25->71"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.65,
+          "overshoot_deg": 0.09610152018140994
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.20746518565746186
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0.02,
+        "kd": 0.002,
+        "friction": 0.06288756031182587,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.68,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.10261382646875461,
+        "peak_dps": 32.64429143966964,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5601823880995285,
+        "cost": 1.732841555511269,
+        "move": "25->71"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6400000000000001,
+        "overshoot_deg": 0.6432012144328638,
+        "final_err_deg": 0.6432012144328638,
+        "peak_dps": 40.36576403618289,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.49890746981662143,
+        "cost": 2.283991544262205,
+        "move": "25->71"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.65,
+          "overshoot_deg": 0.09734003702684646
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.20799835177932025
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0,
+        "kd": 0.001,
+        "friction": 0.06288756031182587,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.68,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.13185463331410574,
+        "peak_dps": 32.857632157158676,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.6034226899209657,
+        "cost": 1.7474464420793718,
+        "move": "25->71"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6600000000000001,
+        "overshoot_deg": 0.636351941561955,
+        "final_err_deg": 0.6362771750590568,
+        "peak_dps": 42.01504234978814,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5687898487433799,
+        "cost": 2.297390594640769,
+        "move": "71->25"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.68,
+          "overshoot_deg": 0.10768960641206604
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.22479159063522047
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.14,
+        "ki": 0,
+        "kd": 0.0005,
+        "friction": 0.06288756031182587,
+        "kv_up": 0.0028273805811601356,
+        "kv_down": 0
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.68,
+        "overshoot_deg": 0.05553834965707338,
+        "final_err_deg": 0.05553834965707338,
+        "peak_dps": 35.893377890136776,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.7374148849214385,
+        "cost": 1.7361630622872841,
+        "move": "71->25"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6600000000000001,
+        "overshoot_deg": 0.6878180446710012,
+        "final_err_deg": 0.6531410378530218,
+        "peak_dps": 42.6232941580988,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.5846403466786946,
+        "cost": 2.3315533140863414,
+        "move": "71->25"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.68,
+          "overshoot_deg": 0.1860542968132357
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.3021677541729808
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.1,
+        "ki": 0,
+        "kd": 0.001,
+        "friction": 0.16568818676747143,
+        "kv_up": 0.005654761162320271,
+        "kv_down": 0.0028273805811601356
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.68,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.12328346753855968,
+        "peak_dps": 29.92630064545587,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.6674678998179168,
+        "cost": 1.7420656592307606,
+        "move": "71->25"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6400000000000001,
+        "overshoot_deg": 0.7479189704824449,
+        "final_err_deg": 0.7479189704824449,
+        "peak_dps": 44.23405697226024,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.6081472356022453,
+        "cost": 2.3888592438515244,
+        "move": "25->71"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.65,
+          "overshoot_deg": 0.12816142206013126
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.28518145162570363
+        }
+      }
+    },
+    {
+      "gains": {
+        "slew": 27.0,
+        "kp": 0.1,
+        "ki": 0.005,
+        "kd": 0.0005,
+        "friction": 0.16568818676747143,
+        "kv_up": 0.005654761162320271,
+        "kv_down": 0.0028273805811601356
+      },
+      "nominal": {
+        "ok": true,
+        "settle_s": 1.68,
+        "overshoot_deg": 0.0,
+        "final_err_deg": 0.024704362323340945,
+        "peak_dps": 38.36694736268124,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.640816985340261,
+        "cost": 1.6928704851487635,
+        "move": "71->25"
+      },
+      "worst_case": {
+        "ok": true,
+        "settle_s": 1.6400000000000001,
+        "overshoot_deg": 0.7579007892586276,
+        "final_err_deg": 0.7579007892586276,
+        "peak_dps": 41.47537781198625,
+        "saturation": 0.0,
+        "tracking_rms_deg": 0.594276882682998,
+        "cost": 2.398945094015916,
+        "move": "25->71"
+      },
+      "loop_period": {
+        "30ms": {
+          "ok": true,
+          "settle_s": 1.65,
+          "overshoot_deg": 0.21513306941024268
+        },
+        "40ms": {
+          "ok": true,
+          "settle_s": 1.6400000000000001,
+          "overshoot_deg": 0.3215868524769405
+        }
+      }
+    }
+  ],
+  "current_hub_settings": {
+    "gains": {
+      "slew": 27.0,
+      "kp": 0.0175,
+      "ki": 0.005,
+      "kd": 0,
+      "friction": 0.123,
+      "kv_up": 0.003,
+      "kv_down": 0,
+      "gravity_cos": 0.0638,
+      "gravity_constant": 0.0694
+    },
+    "nominal": {
+      "ok": true,
+      "settle_s": 2.46,
+      "overshoot_deg": 0.0,
+      "final_err_deg": 1.1368641829968027,
+      "peak_dps": 30.131996374772605,
+      "saturation": 0.0,
+      "tracking_rms_deg": 7.522183727077779,
+      "cost": 3.0303160385557386,
+      "move": "25->71"
+    },
+    "worst_case": {
+      "ok": false,
+      "settle_s": null,
+      "overshoot_deg": 0.0,
+      "final_err_deg": 1.5763901461644139,
+      "peak_dps": 29.553295152846793,
+      "saturation": 0.0,
+      "tracking_rms_deg": 8.254062265929049,
+      "cost": 99.79035877996311,
+      "move": "25->71"
+    }
+  }
+}
