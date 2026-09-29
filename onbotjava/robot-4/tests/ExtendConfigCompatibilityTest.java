@@ -19,7 +19,7 @@ public final class ExtendConfigCompatibilityTest {
                 + "kp=.03\nki=.005\nkd=0\ngravity_cos=.131\ngravity_constant=0\n"
                 + "gravity_phase_deg=-10\nfriction=.15\nballs=20\n"
                 + "auto_stations=30,45,60\nauto_step_deg=5\nauto_hold_s=3\n"
-                + "auto_step_s=4\nauto_arrive_s=8\n";
+                + "auto_step_s=4\nauto_arrive_s=8\nauto_slew_dps=27\n";
             Files.write(file.toPath(), base.getBytes(StandardCharsets.UTF_8));
             ExtendTuneConfig legacy = ExtendTuneConfig.load(file);
             ExtendIdentificationConfig v2 = ExtendIdentificationConfig.load(file);
@@ -29,7 +29,15 @@ public final class ExtendConfigCompatibilityTest {
                 "gains preserved");
             check(v2.trialMode.equals("PID") && v2.motorHubIndex == -1, "safe v2 defaults");
             check(legacy.autoStations.length == 3 && legacy.autoStations[2] == 60
-                && legacy.autoStepS == 4, "Auto schedule preserved");
+                && legacy.autoStepS == 4 && legacy.autoSlewDps == 27, "Auto schedule preserved");
+            legacy.autoSlewDps = 30; check(legacy.autoValid(), "30 deg/s Auto slew accepted");
+            legacy.autoSlewDps = 30.001; check(!legacy.autoValid(), "Auto slew above limit rejected");
+            legacy.autoSlewDps = 27;
+            legacy.autoStations = new double[] {60};
+            ExtendTuneAutoCore slew = new ExtendTuneAutoCore(legacy);
+            slew.update(40, 1_000_000_000L, true, true, "", true);
+            check(Math.abs(slew.target - 40.54) < 1e-9, "configured 27 deg/s Auto target slew");
+            legacy.autoStations = new double[] {30, 45, 60};
             Files.write(file.toPath(), (base + "trial_mode=BREAKAWAY_POS\n").getBytes(StandardCharsets.UTF_8));
             check(ExtendTuneConfig.load(file).autoValid(), "v2 fields do not change legacy validation");
             boolean rejected = false;

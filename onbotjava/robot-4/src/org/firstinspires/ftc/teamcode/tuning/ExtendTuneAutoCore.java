@@ -2,7 +2,7 @@ package org.firstinspires.ftc.teamcode.tuning;
 
 /**
  * Operator-held automatic schedule for Extend_TuneAuto_R4. Same control law and guards as
- * ExtendTuneCore (FF + PID, 10 deg/s target slew, 45 deg/s overspeed, 500 ms no-motion),
+ * ExtendTuneCore (FF + PID, configured target slew, 45 deg/s overspeed, 500 ms no-motion),
  * but the goal follows a schedule: for each station, move -> hold -> +step -> back -> -step -> back.
  * The integral is cleared at every goal change, as ExtendController.setTarget() does.
  */
@@ -73,7 +73,7 @@ public final class ExtendTuneAutoCore {
             else if (station + 1 < config.autoStations.length) enter(station + 1, 0, now);
             else { state = "COMPLETE"; segment = "DONE"; zero(); return; }
         }
-        target += Math.max(-10 * dt, Math.min(10 * dt, goal - target));
+        target += Math.max(-config.autoSlewDps * dt, Math.min(config.autoSlewDps * dt, goal - target));
         double error = target - angle;
         integral = Math.max(-.5, Math.min(.5, integral + error * dt));
         p = config.kp * error; i = config.ki * integral;

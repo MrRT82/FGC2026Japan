@@ -33,3 +33,10 @@ gravity_cos=0.0638
 gravity_constant=0.0694
 gravity_phase_deg=17
 friction=0.123
+# Extend_TuneAuto_R4 target update speed. 27 deg/s corresponds to about 2 s over 54 deg.
+auto_stations=25,71
+auto_step_deg=2
+auto_hold_s=1.5
+auto_step_s=1.5
+auto_arrive_s=4
+auto_slew_dps=27

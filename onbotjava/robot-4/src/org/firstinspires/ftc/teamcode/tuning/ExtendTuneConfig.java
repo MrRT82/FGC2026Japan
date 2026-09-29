@@ -16,7 +16,7 @@ public final class ExtendTuneConfig {
     public String gearRatio = "unknown", motorModel = "unknown";
     /** Extend_TuneAuto_R4 schedule (ignored by Extend_Tune_R4). */
     public double[] autoStations = {30, 45, 60};
-    public double autoStepDeg = 5, autoHoldS = 3, autoStepS = 4, autoArriveS = 8;
+    public double autoStepDeg = 5, autoHoldS = 3, autoStepS = 4, autoArriveS = 8, autoSlewDps = 10;
 
     public static ExtendTuneConfig load(File file) throws IOException {
         ExtendTuneConfig c = new ExtendTuneConfig();
@@ -48,6 +48,7 @@ public final class ExtendTuneConfig {
         c.autoHoldS = number(p, "auto_hold_s", c.autoHoldS);
         c.autoStepS = number(p, "auto_step_s", c.autoStepS);
         c.autoArriveS = number(p, "auto_arrive_s", c.autoArriveS);
+        c.autoSlewDps = number(p, "auto_slew_dps", c.autoSlewDps);
         if (c.motionEnabled && !c.valid()) throw new IOException("Invalid motion limits: " + file);
         return c;
     }
@@ -67,7 +68,8 @@ public final class ExtendTuneConfig {
     /** Every station and station +/- step stays 2 deg inside the limits. */
     public boolean autoValid() {
         if (!valid() || autoStations.length == 0 || !positive(autoStepDeg) || autoStepDeg > 10
-            || !positive(autoHoldS) || !positive(autoStepS) || !positive(autoArriveS)) return false;
+            || !positive(autoHoldS) || !positive(autoStepS) || !positive(autoArriveS)
+            || !positive(autoSlewDps) || autoSlewDps > 30) return false;
         for (double s : autoStations)
             if (!finite(s) || s - autoStepDeg < minAngle + 2 || s + autoStepDeg > maxAngle - 2) return false;
         return true;
