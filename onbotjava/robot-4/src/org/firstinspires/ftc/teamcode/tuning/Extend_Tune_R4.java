@@ -12,7 +12,7 @@ import java.util.*;
 /** Robot 4 only: current logging and small supervised extension trials. */
 @TeleOp(name="Extend_Tune_R4", group="1_DIAG")
 public final class Extend_Tune_R4 extends LinearOpMode {
-    public static final String BUILD = "20260929_robot4_extend_tune_v5";
+    public static final String BUILD = "20260929_robot4_extend_tune_v6";
     private static final long PERIOD_NS = 20_000_000L;
     private static final double MAX_AGE_MS = 250;
     private static final class Reading {

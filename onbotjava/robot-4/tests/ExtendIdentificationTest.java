@@ -75,6 +75,18 @@ public final class ExtendIdentificationTest {
         check(c.commandV < c.baselineV, "reversed sign maps positive angle to negative motor effort");
         tick(c,101,40.32,true,"",12);
         check(c.firstMotionNs > 0 && c.fault.isEmpty(), "positive angle motion accepted with reversed sign");
+        cfg = config("BREAKAWAY_MOTOR_POS");
+        c = new ExtendTuneCore(cfg);
+        for(int n=0;n<=100;n++) tick(c,n,40,true,"",12);
+        check(c.commandV > c.baselineV, "raw positive motor ramp increases voltage");
+        tick(c,101,39.68,true,"",12);
+        check(c.sent == 0 && c.stopReason.equals("BREAKAWAY_RECORDED"), "raw ramp records either angle direction immediately");
+        cfg = config("BREAKAWAY_MOTOR_NEG"); cfg.motorToAngleSign = -1;
+        c = new ExtendTuneCore(cfg);
+        for(int n=0;n<=100;n++) tick(c,n,40,true,"",12);
+        check(c.commandV < c.baselineV, "raw negative motor ramp ignores angle mapping");
+        tick(c,101,40.32,true,"",12);
+        check(c.sent == 0 && c.stopReason.equals("BREAKAWAY_RECORDED"), "raw negative ramp records absolute movement");
         c = new ExtendTuneCore(cfg);
         for(int n=0;n<=55;n++) tick(c,n,40,true,"",12);
         tick(c,56,40.2,true,"",12); check(c.fault.equals("BASELINE_DRIFT"), "freeze drift abort");

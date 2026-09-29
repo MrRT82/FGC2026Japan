@@ -5,7 +5,7 @@ motion_enabled=false
 motor_model=REV_Core_Hex
 gear_ratio=user_reported_10.4_reduction
 balls=-1
-# PID (manual), STEP_POS, STEP_NEG, BREAKAWAY_POS, BREAKAWAY_NEG.
+# PID (manual), STEP_POS, STEP_NEG, BREAKAWAY_POS/NEG, BREAKAWAY_MOTOR_POS/NEG.
 # Non-PID trials require known balls and train/validation role. No automatic sequence of trials.
 trial_mode=PID
 dataset_role=unspecified

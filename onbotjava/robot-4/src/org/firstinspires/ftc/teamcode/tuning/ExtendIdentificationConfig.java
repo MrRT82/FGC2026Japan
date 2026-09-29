@@ -20,6 +20,7 @@ public final class ExtendIdentificationConfig {
     public double stepDeg = 5, slewDps = 10;
     public double rampRateVps = .4, rampMaxDeltaV = 1, rampMaxExcursionDeg = 3;
     public boolean rampMode() { return trialMode.startsWith("BREAKAWAY_"); }
+    public boolean motorRampMode() { return trialMode.startsWith("BREAKAWAY_MOTOR_"); }
     public int direction() { return trialMode.endsWith("NEG") ? -1 : 1; }
 
     public static ExtendIdentificationConfig load(File file) throws IOException {
@@ -65,7 +66,8 @@ public final class ExtendIdentificationConfig {
             && finite(gravityCos) && finite(gravityConstant) && finite(gravityPhaseDeg)
             && finite(friction) && friction >= 0
             && (trialMode.equals("PID") || trialMode.equals("STEP_POS") || trialMode.equals("STEP_NEG")
-                || trialMode.equals("BREAKAWAY_POS") || trialMode.equals("BREAKAWAY_NEG"))
+                || trialMode.equals("BREAKAWAY_POS") || trialMode.equals("BREAKAWAY_NEG")
+                || trialMode.equals("BREAKAWAY_MOTOR_POS") || trialMode.equals("BREAKAWAY_MOTOR_NEG"))
             && (datasetRole.equals("unspecified") || datasetRole.equals("train") || datasetRole.equals("validation"))
             && positive(stepDeg) && stepDeg <= 5 && positive(slewDps) && slewDps <= 10
             && rampRateVps >= .1 && rampRateVps <= 1 && positive(rampMaxDeltaV) && rampMaxDeltaV <= 4

@@ -121,12 +121,17 @@ public final class ExtendTuneCore {
     private void ramp(long now, double hubVoltage) {
         p = i = d = integral = ff = 0;
         double displacement = angle - rampCenter;
-        int motorDirection = config.direction() * config.motorToAngleSign;
+        int motorDirection = config.motorRampMode() ? config.direction() : config.direction() * config.motorToAngleSign;
         if (rampNs == 0) {
             if (Math.abs(displacement) > .15) { trip("BASELINE_DRIFT"); return; }
             if (now - baselineNs >= 500_000_000L) { rampNs = now; phase = "RAMP"; event = "RAMP_BEGIN"; lastStillNs = now; }
         }
         if (rampNs != 0) {
+            if (config.motorRampMode() && Math.abs(displacement) >= .3) {
+                firstMotionNs = now;
+                complete("BREAKAWAY_RECORDED");
+                return;
+            }
             if (config.direction() * displacement < -.3) { trip("WRONG_DIRECTION"); return; }
             if (Math.abs(displacement) <= .15) lastStillNs = now;
             if (config.direction() * displacement >= .3) {
