@@ -17,6 +17,9 @@ import pandas as pd
 PHASE_DEG = 17.0          # gravity_phase_deg of the robot 4 config; a free phase is ill-posed over 25-71 deg
 DT = 0.020
 AUTO_FILES = ('07_', '08_', '09_', '10_')
+# Run 11 is stick-slip chatter (+/-134 deg/s): a linear fit on it collapses kV to 0, so it is
+# used only to check the closed-loop replay.
+REPLAY_FILES = AUTO_FILES + ('11_',)
 # Handoff: 06 is the accepted negative breakaway, 01 the positive reference; 02-05 are
 # reversed/unsustained angle responses and 04 released the deadman.
 BREAKAWAY_FILES = ('01_', '06_')
@@ -113,7 +116,8 @@ class Plant:
     def __init__(self, p, q0, scale=None):
         s = scale or {}
         self.gc = p['gravity_cos'] * s.get('g', 1); self.g0 = p['gravity_constant'] * s.get('g', 1)
-        self.fs = (p['fs_pos'] + s.get('fs', 0), p['fs_neg'] + s.get('fs', 0))
+        # 'stick' raises static above kinetic friction only: the stick-slip seen in run 11.
+        self.fs = (p['fs_pos'] + s.get('fs', 0) + s.get('stick', 0), p['fs_neg'] + s.get('fs', 0) + s.get('stick', 0))
         self.fc = (p['fc_pos'] + s.get('fs', 0), p['fc_neg'] + s.get('fs', 0))
         self.kv = p['kv'] * s.get('kv', 1); self.ka = p['ka']
         self.q, self.v = q0, 0.0
@@ -178,10 +182,16 @@ def score(log, start, goal, band=1.5):
     final = float(abs(err[-1]))
     sat = float(np.mean(np.abs(u) >= .999))
     track = float(np.sqrt(np.mean((target - q) ** 2)))
-    ok = settle is not None and over <= 3.0 and final <= band
-    cost = (settle if settle is not None else 99) + .5 * over + .5 * final + .02 * float(np.mean(u ** 2))
+    # Chatter: run 11 (kp 0.14) reversed the output between +1 and -0.4 during the move.
+    s = np.sign(u[np.abs(u) > .05])
+    reversals = int(np.sum(s[1:] != s[:-1]))
+    variation = float(np.sum(np.abs(np.diff(u))))
+    ok = settle is not None and over <= 3.0 and final <= band and reversals <= 2
+    cost = ((settle if settle is not None else 99) + .5 * over + .5 * final + .02 * float(np.mean(u ** 2))
+            + .1 * variation)
     return dict(ok=ok, settle_s=settle, overshoot_deg=over, final_err_deg=final, peak_dps=float(np.max(np.abs(v))),
-                saturation=sat, tracking_rms_deg=track, cost=cost)
+                saturation=sat, tracking_rms_deg=track, output_reversals=reversals, output_variation=variation,
+                cost=cost)
 
 
 # FGC_PIDF_Tuner's 27 cases, widened on the fast side: the closed-loop replay of runs 07/09/10 is
@@ -250,6 +260,9 @@ RECORDED = {
     '08_': dict(max_power=.50, kv_up=0, fault='OVERSPEED'),
     '09_': dict(max_power=.50, kv_up=0, fault=''),
     '10_': dict(max_power=.50, kv_up=.010, fault='OVERSPEED'),
+    # First no-limit run with the r4_pidf candidate: reached 70.4 deg in 1.8 s with stick-slip chatter.
+    '11_': dict(max_power=1.0, kp=.14, ki=.005, kd=.001, friction=.126, kv_up=.0028,
+                gravity_cos=.202, gravity_constant=.045, fault=''),
 }
 SESSION = dict(slew=27.0, kp=.0175, ki=.005, kd=0, friction=.123, kv_down=0,
                gravity_cos=.0638, gravity_constant=.0694)
@@ -261,7 +274,7 @@ def replay(p, folder):
     out = []
     for f in sorted(glob.glob(os.path.join(folder, '*.csv'))):
         key = os.path.basename(f)[:3]
-        if key not in RECORDED:
+        if key not in RECORDED or not key.startswith(REPLAY_FILES):
             continue
         d = load(f); a = d[(d.state == 'ACTIVE') & (d.segment == 'MOVE')]
         if a.empty:

@@ -1,4 +1,5 @@
 # Robot 4 only. Extend_TuneAuto_R4 settings from tools/r4_pidf_tune.py (2026-09-29 data).
+# kp 0.14 / kd 0.001 chattered on the robot (run 11, backlash); halved to kp 0.07, kd 0.
 # Copy to /sdcard/FIRST/robot4_extend_tune.properties. Simulation-selected; NOT yet run on the robot.
 # The tuning OpModes enforce NO angle, current, voltage, speed or power limits in this build.
 # Stops are only: release RB, press B, logger failure, invalid angle, loop delay.
@@ -13,9 +14,9 @@ gravity_cos=0.202
 gravity_constant=0.045
 gravity_phase_deg=17
 friction=0.126
-kp=0.14
+kp=0.07
 ki=0.005
-kd=0.001
+kd=0
 # Velocity feedforward (duty per deg/s of target speed). Model kV = 0.0057.
 auto_kv_up=0.0028
 auto_kv_down=0
