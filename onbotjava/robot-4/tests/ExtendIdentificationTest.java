@@ -4,8 +4,8 @@ package org.firstinspires.ftc.teamcode.tuning;
 public final class ExtendIdentificationTest {
     private static int checks;
     private static void check(boolean ok, String message) { checks++; if (!ok) throw new AssertionError(message); }
-    private static ExtendTuneConfig config(String mode) {
-        ExtendTuneConfig c = new ExtendTuneConfig();
+    private static ExtendIdentificationConfig config(String mode) {
+        ExtendIdentificationConfig c = new ExtendIdentificationConfig();
         c.motionEnabled = true; c.minAngle = 1; c.maxAngle = 75; c.maxPower = .25;
         c.motorLimitA = 2; c.hubLimitA = 8; c.minVoltage = 11;
         c.trialMode = mode; c.datasetRole = "train"; c.balls = 0; c.motorHubIndex = 0;
@@ -16,7 +16,7 @@ public final class ExtendIdentificationTest {
         c.update(angle, 1_000_000_000L + n * 20_000_000L, held, n == 0, 0, fault, true, volts);
     }
     public static void main(String[] args) {
-        ExtendTuneConfig cfg = config("BREAKAWAY_POS");
+        ExtendIdentificationConfig cfg = config("BREAKAWAY_POS");
         check(cfg.valid(), "ramp fixture valid");
         cfg.motorHubIndex = -1; check(!cfg.valid(), "ramp requires assigned Hub"); cfg.motorHubIndex = 0;
         cfg.balls = -1; check(!cfg.valid(), "load must be known"); cfg.balls = 0;

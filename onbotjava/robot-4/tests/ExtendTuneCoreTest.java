@@ -7,14 +7,14 @@ public final class ExtendTuneCoreTest {
     private static void check(boolean value, String message) {
         checks++; if (!value) throw new AssertionError(message);
     }
-    private static ExtendTuneConfig config() {
-        ExtendTuneConfig c = new ExtendTuneConfig();
+    private static ExtendIdentificationConfig config() {
+        ExtendIdentificationConfig c = new ExtendIdentificationConfig();
         c.motionEnabled = true; c.minAngle = 10; c.maxAngle = 70;
         c.motorLimitA = 2; c.hubLimitA = 8; c.minVoltage = 11; c.maxPower = .2;
         return c; // Synthetic test settings only, not robot limits.
     }
     public static void main(String[] args) throws Exception {
-        ExtendTuneCore c = new ExtendTuneCore(new ExtendTuneConfig());
+        ExtendTuneCore c = new ExtendTuneCore(new ExtendIdentificationConfig());
         c.update(40, 1_000_000_000L, true, true, 1, "", true);
         check(c.sent == 0 && c.state.equals("MONITOR"), "default must never move");
         c = new ExtendTuneCore(config());
@@ -61,11 +61,11 @@ public final class ExtendTuneCoreTest {
         check(writer.offer("1,2"), "queue row"); writer.close();
         check(new String(Files.readAllBytes(log.toPath()), "UTF-8").contains("1,2"), "close drains");
         check(!writer.offer("3,4"), "closed rejects");
-        check(!ExtendTuneConfig.load(temp.resolve("missing.properties").toFile()).motionEnabled, "missing config");
+        check(!ExtendIdentificationConfig.load(temp.resolve("missing.properties").toFile()).motionEnabled, "missing config");
         File bad = temp.resolve("bad.properties").toFile();
         Files.write(bad.toPath(), "motion_enabled=true\n".getBytes("UTF-8"));
         boolean rejected = false;
-        try { ExtendTuneConfig.load(bad); } catch (IOException expected) { rejected = true; }
+        try { ExtendIdentificationConfig.load(bad); } catch (IOException expected) { rejected = true; }
         check(rejected, "missing motion limits rejected");
         System.out.println("ExtendTuneCoreTest passed: " + checks);
     }

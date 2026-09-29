@@ -36,7 +36,9 @@ Core Hex仕様の4.4Aは拘束電流であり許容連続電流ではない。�
 
 ## v2の試験モード（設定ファイルで選択）
 
-OpMode名は同じExtend_Tune_R4。4つのJavaを同時に更新する。設定変更後はSTOP→再INIT。
+OpMode名は同じExtend_Tune_R4。v2はExtendIdentificationConfig.java、ExtendTuneCore.java、Extend_Tune_R4.java、TuneCsvWriter.javaを使用する。旧4ファイル配布とは設定クラス名が異なる。Auto／Sweep／SysId用のExtendTuneConfig.javaは保持する。設定変更後はSTOP→再INIT。
+
+2026-09-29の統合では現地追加のAuto／Sweep／SysIdの9 Javaと旧設定クラスをそのまま収録した。v2専用設定クラスへの分離により、既存OpModeの検証条件・試験時間を変更しない。設定ファイルのパスは共通で、motion_enabledはTuneとAutoの両方に影響する。実Hubへの更新では調整値を保持し、motion_enabledだけfalseに戻す。
 STARTだけでは出力しない。どのモードもgamepad1のRBを押し続けながらAを新しく押して1試行だけ開始。
 RB解除は0出力、Bはラッチ停止。再試行は新しいA操作が必要で、自動反復・自動逆転はしない。
 0出力/BRAKEで落下を防げるとは限らないため、機構を支持できる状態で行う。

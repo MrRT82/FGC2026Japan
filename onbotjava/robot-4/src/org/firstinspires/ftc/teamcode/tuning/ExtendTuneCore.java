@@ -2,7 +2,7 @@ package org.firstinspires.ftc.teamcode.tuning;
 
 /** Operator-held identification trials; no automatic gain changes or jam reversal. */
 public final class ExtendTuneCore {
-    final ExtendTuneConfig config;
+    final ExtendIdentificationConfig config;
     public String state = "MONITOR", fault = "", phase = "IDLE", event = "", stopReason = "";
     public double angle, velocity, target, goal, sent, requested, ff, p, i, d, dt;
     public double trialMs = -1, baselineV = Double.NaN, rampDeltaV, commandV = Double.NaN;
@@ -12,7 +12,7 @@ public final class ExtendTuneCore {
     private int quietCount;
     private long previousNs, startedNs, stallNs, quietNs, baselineNs, rampNs, motionCandidateNs, confirmedNs;
     private boolean initialized;
-    public ExtendTuneCore(ExtendTuneConfig config) { this.config = config; }
+    public ExtendTuneCore(ExtendIdentificationConfig config) { this.config = config; }
     public void trip(String reason) {
         if (fault.isEmpty()) fault = reason;
         state = "FAULT"; phase = "STOPPED"; event = "FAULT"; stopReason = fault; zero();
@@ -34,7 +34,7 @@ public final class ExtendTuneCore {
                        int targetStep, String electricalFault, boolean writerOk, double hubVoltage) {
         event = "";
         dt = initialized ? (now - previousNs) / 1e9 : .020;
-        if (!ExtendTuneConfig.finite(observed) || observed < -5 || observed > 90) { trip("ANGLE_INVALID"); return; }
+        if (!ExtendIdentificationConfig.finite(observed) || observed < -5 || observed > 90) { trip("ANGLE_INVALID"); return; }
         angle = observed;
         if (!initialized) { previousAngle = angle; target = goal = angle; }
         if (initialized && (dt < .002 || dt > .100)) {
@@ -50,7 +50,7 @@ public final class ExtendTuneCore {
         if (!fault.isEmpty()) { zero(); return; }
         if (!config.motionEnabled || !config.valid() || !deadman) { release(); return; }
         if (angle <= config.minAngle || angle >= config.maxAngle) { trip("ANGLE_LIMIT"); return; }
-        if (config.rampMode() && (!ExtendTuneConfig.finite(hubVoltage) || hubVoltage < config.minVoltage || hubVoltage > 16)) {
+        if (config.rampMode() && (!ExtendIdentificationConfig.finite(hubVoltage) || hubVoltage < config.minVoltage || hubVoltage > 16)) {
             if (state.equals("ACTIVE")) trip("RAMP_VOLTAGE_INVALID"); else release();
             return;
         }
@@ -93,7 +93,7 @@ public final class ExtendTuneCore {
         double friction = velocity * Math.signum(error) > 15 ? 0 : config.friction * Math.max(-1, Math.min(1, error / 2));
         ff = config.gravityCos * Math.cos(Math.toRadians(angle + config.gravityPhaseDeg)) + config.gravityConstant + friction;
         requested = ff + p + i + d;
-        if (!ExtendTuneConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
+        if (!ExtendIdentificationConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
         sent = Math.max(-config.maxPower, Math.min(config.maxPower, requested));
         commandV = sent * hubVoltage;
         if (Math.abs(angle - stallAngle) >= 1 || Math.abs(error) < 3 || Math.abs(sent) < .1) { stallAngle = angle; stallNs = now; }
@@ -139,7 +139,7 @@ public final class ExtendTuneCore {
         }
         commandV = motionCandidateNs != 0 ? frozenV : baselineV + config.direction() * rampDeltaV;
         requested = commandV / hubVoltage;
-        if (!ExtendTuneConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
+        if (!ExtendIdentificationConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
         if (Math.abs(requested) > config.maxPower) { complete("OUTPUT_LIMIT_NO_RESULT"); return; }
         sent = requested;
     }

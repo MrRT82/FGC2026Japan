@@ -36,11 +36,11 @@ public final class Extend_Tune_R4 extends LinearOpMode {
                 LynxModule hub = hubs.get((index - 1) / 2);
                 r.value = index % 2 == 1 ? hub.getInputVoltage(VoltageUnit.VOLTS) : hub.getCurrent(CurrentUnit.AMPS);
             }
-            r.ok = ExtendTuneConfig.finite(r.value) && r.value >= 0;
+            r.ok = ExtendIdentificationConfig.finite(r.value) && r.value >= 0;
         } catch (RuntimeException ignored) { /* Failure is NaN + ok=0, never zero current. */ }
         r.stampNs = System.nanoTime(); r.durationMs = (r.stampNs - start) / 1e6; r.seq++;
     }
-    private static String electricalFault(Reading[] readings, long now, ExtendTuneConfig c) {
+    private static String electricalFault(Reading[] readings, long now, ExtendIdentificationConfig c) {
         for (int n = 0; n < readings.length; n++) {
             Reading r = readings[n];
             if (!r.ok || r.age(now) < 0 || r.age(now) > MAX_AGE_MS || r.durationMs > 100) return "ELECTRICAL_STALE_OR_INVALID";
@@ -50,7 +50,7 @@ public final class Extend_Tune_R4 extends LinearOpMode {
         }
         return "";
     }
-    private static void metadata(File file, ExtendTuneConfig c, List<LynxModule> hubs, DcMotorEx motor) throws IOException {
+    private static void metadata(File file, ExtendIdentificationConfig c, List<LynxModule> hubs, DcMotorEx motor) throws IOException {
         try (PrintWriter w = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
             w.println("build=" + BUILD); w.println("robot=4"); w.println("expected_adb_serial=dddad6c23c4eeb3b");
             w.println("motion_enabled=" + c.motionEnabled); w.println("balls=" + c.balls);
@@ -86,7 +86,7 @@ public final class Extend_Tune_R4 extends LinearOpMode {
         try {
             // Do not call RobotHardware.init(): it moves unrelated servos and resets encoders.
             for (DcMotor other : hardwareMap.getAll(DcMotor.class)) other.setPower(0);
-            ExtendTuneConfig config = ExtendTuneConfig.load(new File(ExtendTuneConfig.PATH));
+            ExtendIdentificationConfig config = ExtendIdentificationConfig.load(new File(ExtendIdentificationConfig.PATH));
             motor = hardwareMap.get(DcMotorEx.class, "extendmotor");
             motor.setPower(0);
             motor.setDirection(DcMotor.Direction.FORWARD);

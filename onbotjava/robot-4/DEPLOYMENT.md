@@ -1,5 +1,23 @@
 # 4号機 Blue計測版の配布記録
 
+## 2026-09-29 Tune v2・現地追加機能との統合
+
+- 対象は4号機Hub `dddad6c23c4eeb3b`。転送前にADBの`ro.serialno`一致を確認。
+- 現地追加のAuto／Sweep／SysId 9 Javaと旧ExtendTuneConfigをそのままリポジトリへ収録。v2はExtendIdentificationConfigへ分離し、既存設定検証とAutoの試験時間を保持。
+- Hubへ新規ExtendIdentificationConfigと更新ExtendTuneCore、Extend_Tune_R4の3 Javaだけを転送。TuneCsvWriterは既存とSHA-256一致のため転送せず。
+- 実設定はmotion_enabledをtrueからfalseへ変更しただけ。ゲイン、角度範囲、電流・電圧閾値、Auto設定を保持。共通設定を読むTuneとAutoは動作無効となる。別設定のSweep／SysIdの有効状態は変更していない。
+- PC: Windows、JDK17、FTC SDKのonbotjava-classes.jarとandroid.jarで、実Hubの全ソースに更新を重ねた57 Javaをコンパイル。`javac -encoding UTF-8 -source 8 -target 8 -cp '../hub_compile_libs/onbotjava-classes.jar;../hub_compile_libs/android.jar' -d classes @sources.txt`成功（Java8 bootstrap警告1件）。引数ファイルは相対パス一覧。
+- PC: `javac -encoding UTF-8 -cp classes -d classes <test.java>`、`java -cp classes org.firstinspires.ftc.teamcode.tuning.<test>`でExtendTuneCoreTest 21項目、ExtendIdentificationTest 29項目、ExtendConfigCompatibilityTest 8項目成功。制御停止・不正設定・試験上限と、旧Autoがv2の8秒制限や追加検証に影響されないことを確認。
+- 検証中の失敗: 初回javacはUTF-8引数ファイル内の日本語絶対パスの読み取りでMalformedInputException。ASCII相対パスに修正して成功。別の制限環境ではコンパイル済みクラスが見つからず互換性テストのコンパイルが失敗。同じ昇格環境で再実行して成功。javapも制限環境ではJAR終了時AccessDeniedExceptionとなり、昇格環境でエラーなし・終了コード0を確認。
+- ADB読み戻しとPowerShell Get-FileHashによるSHA-256照合で、全57 Javaが配布予定と一致。対象外54 Javaは配布前とバイト一致。設定も配布元と一致。
+- 一意のbuildRequest.txtでHubビルド。buildStarted／buildSuccessful／buildComplete更新、空のbuildLog、`onBotJava build finished successfully`を確認。
+- Hub生成OnBotJava.jarを`jar tf`および`javap -constants`で確認。新設定クラス、Tune／Auto／Sweep／SysIdを収録し、TuneのBUILDは`20260927_robot4_extend_tune_v2`。
+- ビルド完了後のOpmodeRegistrationログでTune、Auto、Sweep、SysId、通常Blue／Red、Blue_Timing、既存診断の登録を確認。
+- INIT／START、機構の動作、実CSV収集は未実施。実機の制御性能・停止閾値の妥当性・再起動原因は未検証。新しいゲインは算出・適用していない。
+- バックアップと証拠は作業領域`hub_robot4_tune_20260929`に保存。実設定・機器ログ・生成JARはGitへ含めない。Hub時計は1970年のため、日時の大小ではなく更新内容・生成JAR・ビルド後登録で判断した。
+
+## 2026-09-23 Blue計測版
+
 2026-09-23 JST、ユーザーの「今接続している4号機のHubに書き込んでほしい」に基づき実施。
 
 - 対象Hub: dddad6c23c4eeb3b。ADBの唯一の接続端末で、ro.serialnoも一致。この確認により4号機の対応を確定。
