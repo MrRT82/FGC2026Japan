@@ -15,9 +15,8 @@ import java.util.*;
  */
 @TeleOp(name="Extend_TuneAuto_R4", group="1_DIAG")
 public final class Extend_TuneAuto_R4 extends LinearOpMode {
-    public static final String BUILD = "20260929_robot4_extend_tune_auto_v4";
+    public static final String BUILD = "20260929_robot4_extend_tune_auto_v4_nolimits";
     private static final long PERIOD_NS = 20_000_000L;
-    private static final double MAX_AGE_MS = 250;
     private static final class Reading {
         double value = Double.NaN, durationMs;
         long stampNs, seq;
@@ -43,16 +42,6 @@ public final class Extend_TuneAuto_R4 extends LinearOpMode {
         } catch (RuntimeException ignored) { /* Failure is NaN + ok=0, never zero current. */ }
         r.stampNs = System.nanoTime(); r.durationMs = (r.stampNs - start) / 1e6; r.seq++;
     }
-    private static String electricalFault(Reading[] readings, long now, ExtendTuneConfig c) {
-        for (int n = 0; n < readings.length; n++) {
-            Reading r = readings[n];
-            if (!r.ok || r.age(now) < 0 || r.age(now) > MAX_AGE_MS || r.durationMs > 100) return "ELECTRICAL_STALE_OR_INVALID";
-            if (n == 0 && r.value > c.motorLimitA) return "MOTOR_CURRENT";
-            if (n > 0 && n % 2 == 1 && r.value < c.minVoltage) return "LOW_VOLTAGE_HUB_" + ((n - 1) / 2);
-            if (n > 0 && n % 2 == 0 && r.value > c.hubLimitA) return "HUB_CURRENT_" + ((n - 1) / 2);
-        }
-        return "";
-    }
     private static void metadata(File file, ExtendTuneConfig c, List<LynxModule> hubs) throws IOException {
         try (PrintWriter w = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
             w.println("build=" + BUILD); w.println("robot=4"); w.println("expected_adb_serial=dddad6c23c4eeb3b");
@@ -69,8 +58,9 @@ public final class Extend_TuneAuto_R4 extends LinearOpMode {
             w.println("auto_stations=" + c.autoStationsText()); w.println("auto_step_deg=" + c.autoStepDeg);
             w.println("auto_hold_s=" + c.autoHoldS); w.println("auto_step_s=" + c.autoStepS);
             w.println("auto_arrive_s=" + c.autoArriveS); w.println("auto_slew_dps=" + c.autoSlewDps);
-            w.println("auto_kv_up=" + c.autoKvUp);
+            w.println("auto_kv_up=" + c.autoKvUp); w.println("auto_kv_down=" + c.autoKvDown);
             w.println("angle_conversion=voltage/maxVoltage*135; offset=0");
+            w.println("limits=none; limit settings above are recorded only");
             w.println("zero_power=BRAKE; not a mechanical holding brake");
             for (int n = 0; n < hubs.size(); n++) w.println("hub_" + n + "=" + hubs.get(n).getConnectionInfo());
             if (w.checkError()) throw new IOException("Metadata write failed");
@@ -83,7 +73,7 @@ public final class Extend_TuneAuto_R4 extends LinearOpMode {
         long origin = System.nanoTime();
         try {
             ExtendTuneConfig config = ExtendTuneConfig.load(new File(ExtendTuneConfig.PATH));
-            if (config.motionEnabled && !config.autoValid()) throw new IOException("auto_stations +/- step outside limits");
+            if (config.motionEnabled && !config.autoValid()) throw new IOException("Invalid auto schedule");
             // Do not call RobotHardware.init(): it moves unrelated servos and resets encoders.
             for (DcMotor other : hardwareMap.getAll(DcMotor.class)) other.setPower(0);
             motor = hardwareMap.get(DcMotorEx.class, "extendmotor");
@@ -128,8 +118,7 @@ public final class Extend_TuneAuto_R4 extends LinearOpMode {
                 acquire(readings[readIndex], motor, hubs, readIndex);
                 readIndex = (readIndex + 1) % readings.length;
                 long now = System.nanoTime();
-                String powerFault = electricalFault(readings, now, config);
-                if (angleReadMs > 100 || now - angleEndNs > 100_000_000L) powerFault = "ANGLE_READ_DELAY";
+                String powerFault = angleReadMs > 100 || now - angleEndNs > 100_000_000L ? "ANGLE_READ_DELAY" : "";
                 boolean active = isStarted() && !isStopRequested();
                 boolean deadman = active && gamepad1.right_bumper && !gamepad1.b;
                 boolean start = gamepad1.a && !wasA;
@@ -155,13 +144,12 @@ public final class Extend_TuneAuto_R4 extends LinearOpMode {
                     telemetry.addData("Build", BUILD);
                     telemetry.addData("Mode", config.motionEnabled
                         ? "Hold RB, press A once: runs all stations " + config.autoStationsText() + "; release RB: pause; B: latch stop"
-                        : "MONITOR ONLY - motion limits not enabled");
+                        : "MONITOR ONLY - motion_enabled=false");
                     telemetry.addData("State", core.state + " " + core.fault);
                     telemetry.addData("Step", "station %d/%d (%.0f deg) %s", core.station + 1, config.autoStations.length,
                                       stationDeg, core.segment);
                     telemetry.addData("Target slew", "%.1f deg/s", config.autoSlewDps);
-                    telemetry.addData("Auto max power", "%.2f", config.autoMaxPower);
-                    telemetry.addData("Auto kV up", "%.4f", config.autoKvUp);
+                    telemetry.addData("Auto kV up / down", "%.4f / %.4f", config.autoKvUp, config.autoKvDown);
                     telemetry.addData("Electrical", powerFault);
                     telemetry.addData("Angle / target / goal", "%.2f / %.2f / %.2f", angle, core.target, core.goal);
                     telemetry.addData("Out = ff + p + i", "%.3f = %.3f + %.3f + %.3f", core.sent, core.ff, core.p, core.i);

@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.tuning;
 import java.io.*;
 import java.util.Properties;
 
-/** Robot 4 only. No motion is permitted until measured limits are supplied. */
+/** Robot 4 only. No motion until motion_enabled=true. */
 public final class ExtendTuneConfig {
     public static final String PATH = "/sdcard/FIRST/robot4_extend_tune.properties";
     public boolean motionEnabled;
@@ -18,7 +18,7 @@ public final class ExtendTuneConfig {
     /** Extend_TuneAuto_R4 schedule (ignored by Extend_Tune_R4). */
     public double[] autoStations = {30, 45, 60};
     public double autoStepDeg = 5, autoHoldS = 3, autoStepS = 4, autoArriveS = 8, autoSlewDps = 10;
-    public double autoKvUp;
+    public double autoKvUp, autoKvDown;
 
     public static ExtendTuneConfig load(File file) throws IOException {
         ExtendTuneConfig c = new ExtendTuneConfig();
@@ -53,31 +53,27 @@ public final class ExtendTuneConfig {
         c.autoArriveS = number(p, "auto_arrive_s", c.autoArriveS);
         c.autoSlewDps = number(p, "auto_slew_dps", c.autoSlewDps);
         c.autoKvUp = number(p, "auto_kv_up", 0);
-        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid motion limits: " + file);
+        c.autoKvDown = number(p, "auto_kv_down", 0);
+        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid gains: " + file);
         return c;
     }
     private static double number(Properties p, String key, double fallback) {
         return Double.parseDouble(p.getProperty(key, Double.toString(fallback)));
     }
     static boolean finite(double v) { return !Double.isNaN(v) && !Double.isInfinite(v); }
+    /** Angle, current, voltage and power settings are recorded only; no limit is enforced. */
     public boolean valid() {
-        return finite(minAngle) && finite(maxAngle) && minAngle >= 0 && maxAngle <= 88
-            && maxAngle - minAngle >= 2 && positive(motorLimitA) && positive(hubLimitA)
-            && positive(minVoltage) && positive(maxPower) && maxPower <= .35
-            && finite(kp) && kp >= 0 && finite(ki) && ki >= 0 && finite(kd) && kd >= 0
+        return finite(kp) && kp >= 0 && finite(ki) && ki >= 0 && finite(kd) && kd >= 0
             && finite(gravityCos) && finite(gravityConstant) && finite(gravityPhaseDeg)
             && finite(friction) && friction >= 0;
     }
     private static boolean positive(double v) { return finite(v) && v > 0; }
-    /** Every station and station +/- step stays 2 deg inside the limits. */
     public boolean autoValid() {
-        if (!valid() || autoStations.length == 0 || !positive(autoStepDeg) || autoStepDeg > 10
+        if (!valid() || autoStations.length == 0 || !positive(autoStepDeg)
             || !positive(autoHoldS) || !positive(autoStepS) || !positive(autoArriveS)
-            || !positive(autoSlewDps) || autoSlewDps > 30
-            || !positive(autoMaxPower) || autoMaxPower > .5
-            || !finite(autoKvUp) || autoKvUp < 0 || autoKvUp > .02) return false;
-        for (double s : autoStations)
-            if (!finite(s) || s - autoStepDeg < minAngle + 2 || s + autoStepDeg > maxAngle - 2) return false;
+            || !positive(autoSlewDps) || !finite(autoKvUp) || autoKvUp < 0
+            || !finite(autoKvDown) || autoKvDown < 0) return false;
+        for (double s : autoStations) if (!finite(s)) return false;
         return true;
     }
     public String autoStationsText() {

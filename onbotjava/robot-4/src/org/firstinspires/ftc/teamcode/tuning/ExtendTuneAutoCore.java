@@ -1,8 +1,8 @@
 package org.firstinspires.ftc.teamcode.tuning;
 
 /**
- * Operator-held automatic schedule for Extend_TuneAuto_R4. Same control law and guards as
- * ExtendTuneCore (FF + PID, configured target slew, 45 deg/s overspeed, 500 ms no-motion),
+ * Operator-held automatic schedule for Extend_TuneAuto_R4. Same control law as ExtendTuneCore
+ * (FF + PID, configured target slew; no angle, speed, stall or output limits beyond +/-1),
  * but the goal follows a schedule: for each station, move -> hold -> +step -> back -> -step -> back.
  * The integral is cleared at every goal change, as ExtendController.setTarget() does.
  */
@@ -11,8 +11,8 @@ public final class ExtendTuneAutoCore {
     public String state = "MONITOR", fault = "", segment = "";
     public double angle, velocity, target, goal, sent, requested, ff, p, i, d, dt;
     public int station = -1;
-    private double previousAngle, previousError, integral, stallAngle;
-    private long previousNs, segmentNs, stallNs;
+    private double previousAngle, previousError, integral;
+    private long previousNs, segmentNs;
     private int step;
     private boolean initialized;
 
@@ -34,13 +34,12 @@ public final class ExtendTuneAutoCore {
         station = stationIndex; step = k; segment = SEGMENTS[k]; segmentNs = now;
         goal = config.autoStations[station] + OFFSETS[k] * config.autoStepDeg;
         integral = previousError = 0;
-        stallAngle = angle; stallNs = now;
     }
 
     public void update(double observed, long now, boolean deadman, boolean startEdge,
                        String electricalFault, boolean writerOk) {
         dt = initialized ? (now - previousNs) / 1e9 : .020;
-        if (!ExtendTuneConfig.finite(observed) || observed < -5 || observed > 90) {
+        if (!ExtendTuneConfig.finite(observed)) {
             trip("ANGLE_INVALID"); return;
         }
         angle = observed;
@@ -57,7 +56,6 @@ public final class ExtendTuneAutoCore {
         }
         if (!fault.isEmpty() || state.equals("COMPLETE")) { zero(); return; }
         if (!config.motionEnabled || !config.autoValid() || !deadman) { release(); return; }
-        if (angle <= config.minAngle || angle >= config.maxAngle) { trip("ANGLE_LIMIT"); return; }
         if (startEdge && !state.equals("ACTIVE")) {
             // Start (or resume) from where the arm is, then slew to the station.
             target = angle;
@@ -65,7 +63,6 @@ public final class ExtendTuneAutoCore {
             state = "ACTIVE";
         }
         if (!state.equals("ACTIVE")) { zero(); return; }
-        if (Math.abs(velocity) > 45) { trip("OVERSPEED"); return; }
         double inSegment = (now - segmentNs) / 1e9;
         boolean arrived = Math.abs(target - goal) < 1e-9 && Math.abs(angle - goal) < 1.5;
         if (step == 0 ? arrived || inSegment >= segmentSeconds(0) : inSegment >= segmentSeconds(step)) {
@@ -84,12 +81,10 @@ public final class ExtendTuneAutoCore {
         double friction = velocity * Math.signum(error) > 15 ? 0
             : config.friction * Math.max(-1, Math.min(1, error / 2));
         ff = config.gravityCos * Math.cos(Math.toRadians(angle + config.gravityPhaseDeg))
-            + config.gravityConstant + friction + config.autoKvUp * Math.max(0, targetVelocity);
+            + config.gravityConstant + friction + config.autoKvUp * Math.max(0, targetVelocity)
+            + config.autoKvDown * Math.min(0, targetVelocity);
         requested = ff + p + i + d;
         if (!ExtendTuneConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
-        sent = Math.max(-config.autoMaxPower, Math.min(config.autoMaxPower, requested));
-        if (Math.abs(angle - stallAngle) >= 1 || Math.abs(error) < 3 || Math.abs(sent) < .1) {
-            stallAngle = angle; stallNs = now;
-        } else if (now - stallNs > 500_000_000L) trip("NO_MOTION");
+        sent = Math.max(-1, Math.min(1, requested));
     }
 }
