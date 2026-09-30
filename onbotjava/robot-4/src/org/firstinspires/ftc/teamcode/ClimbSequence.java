@@ -1,16 +1,20 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-09-30 JST (UTC+09:00)
+// 変更内容: 登坂を「押す→上昇(時間)→押す→下降(時間)→終了」の流れへ変更。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
 
-// 登坂段階。押し直しで1段進み、キャンセルは必ず停止段階へ移る。
+// 登坂段階。押す(または自動)→上昇→時間で停止→押す→下降→時間で停止→以後は動かない。
+// 段階番号はメインのswitchに合わせる: 0=待機, 4=上昇, 2=下降。上昇・下降の時間停止は
+// ClimbControllerが行う。下降中は下端センサーでも止まる(メイン側の処理)。
 public final class ClimbSequence {
-    private int stage = 0;
+    public static final int WAIT = 0, UP = 4, DOWN = 2;
+    private int stage = WAIT;
     private boolean primaryHeld, secondaryHeld;
     private double lastAdvanceMs = Double.NEGATIVE_INFINITY;
 
+    // cancelは使わない(引数はメインとの互換のため残す)。
     public int update(double primary, double secondary, boolean cancel,
                       boolean autoUnlockDue, double nowMs) {
         boolean primaryNow = primary > (primaryHeld ? 0.02 : 0.05);
@@ -20,18 +24,13 @@ public final class ClimbSequence {
         primaryHeld = primaryNow;
         secondaryHeld = secondaryNow;
 
-        if (cancel) {
-            if (stage == 1 || stage == 2) stage = 3;
-            else if (stage == 4) stage = 5;
-            return stage;
-        }
-        // gp2は最初の解錠も可能。gp1は解錠後のみ操作できる。
-        if ((secondaryPressed || (primaryPressed && stage != 0))
-                && nowMs - lastAdvanceMs >= 300.0) {
-            stage = stage >= 5 ? 2 : stage + 1;
-            lastAdvanceMs = nowMs;
-        }
-        if (stage == 0 && autoUnlockDue) stage = 1;
+        // gp2は最初の上昇から操作できる。gp1は上昇後の下降だけ操作できる。
+        boolean pressed = (secondaryPressed || (primaryPressed && stage != WAIT))
+                && nowMs - lastAdvanceMs >= 300.0;
+        if (pressed) lastAdvanceMs = nowMs;
+        if (stage == WAIT && (pressed || autoUnlockDue)) stage = UP;
+        else if (stage == UP && pressed) stage = DOWN;
+        // DOWNの後は段階が進まず、下降の時間が過ぎればサーボは停止したまま。
         return stage;
     }
 }

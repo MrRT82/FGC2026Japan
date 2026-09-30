@@ -8,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parents[1]
 SOURCE = ROOT / 'src/org/firstinspires/ftc/teamcode'
 BASELINE = '1547d2a6e6a9d51c240ed6242b96917c692d96f5'
+# Reviewed changes to normal sources after the baseline. 2026-09-30: lock servos rotate with the
+# climb at half speed, climb directions reversed, and the climb runs up then down on timers.
+INTENDED_CHANGES = {'ClimbController.java', 'ClimbSequence.java', 'RobotHardware.java'}
 
 
 class OpModeIsolationTest(unittest.TestCase):
@@ -19,6 +22,8 @@ class OpModeIsolationTest(unittest.TestCase):
         self.assertEqual(len(paths), 22)
         self.assertEqual(len(list(SOURCE.glob('*.java'))), 22)
         for path in paths:
+            if Path(path).name in INTENDED_CHANGES:
+                continue
             with self.subTest(path=path):
                 original = subprocess.check_output(['git', 'show', f'{BASELINE}:{path}'], cwd=REPO)
                 # Git checkout may convert LF to CRLF on Windows; code and all text must match.

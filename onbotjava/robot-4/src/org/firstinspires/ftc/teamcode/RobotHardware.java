@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-09-30 JST (UTC+09:00)
+// 変更内容: ロックサーボ左右を無限回転にし、登坂サーボと連動し、登坂の1/2の速さで回す方式へ変更。登坂サーボ4つとロックの向きを反転。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -82,20 +82,22 @@ public class RobotHardware {
         right_shooterMotor.setDirection(DcMotor.Direction.REVERSE);
         intakeMotor.setDirection(DcMotorEx.Direction.REVERSE);
         extendMotor.setDirection(DcMotor.Direction.FORWARD);
-        rightUp_Servo.setDirection(Servo.Direction.FORWARD);
-        rightDown_Servo.setDirection(Servo.Direction.REVERSE);
-        leftUp_Servo.setDirection(Servo.Direction.REVERSE);
-        leftDown_Servo.setDirection(Servo.Direction.FORWARD);
-        rightLock_Servo.setDirection(Servo.Direction.FORWARD);
-        leftLock_Servo.setDirection(Servo.Direction.REVERSE);
+        // 2026-09-30: 登坂サーボ4つを一旦すべて反転(旧: 右内F/右外R/左内R/左外F)。
+        rightUp_Servo.setDirection(Servo.Direction.REVERSE);
+        rightDown_Servo.setDirection(Servo.Direction.FORWARD);
+        leftUp_Servo.setDirection(Servo.Direction.FORWARD);
+        leftDown_Servo.setDirection(Servo.Direction.REVERSE);
+        // 2026-09-30: ロックも反転(旧: 右F/左R)。
+        rightLock_Servo.setDirection(Servo.Direction.REVERSE);
+        leftLock_Servo.setDirection(Servo.Direction.FORWARD);
 
-        // 初期化時に登坂サーボを中立、ロックを初期位置へ指令する。
+        // 初期化時に登坂サーボとロック(いずれも無限回転)を停止(0.5)へ指令する。
         rightUp_Servo.setPosition(0.5);
         rightDown_Servo.setPosition(0.5);
         leftUp_Servo.setPosition(0.5);
         leftDown_Servo.setPosition(0.5);
-        rightLock_Servo.setPosition(0.3);
-        leftLock_Servo.setPosition(0.15);
+        rightLock_Servo.setPosition(0.5);
+        leftLock_Servo.setPosition(0.5);
 
         leftMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
