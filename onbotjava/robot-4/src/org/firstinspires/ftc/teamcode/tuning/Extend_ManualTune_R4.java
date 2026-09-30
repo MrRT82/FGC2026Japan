@@ -9,8 +9,10 @@ import java.io.*;
 /** Robot 4 interactive PID tuning with the same FF law as Extend_TuneAuto_R4. */
 @TeleOp(name="Extend_ManualTune_R4", group="1_DIAG")
 public final class Extend_ManualTune_R4 extends LinearOpMode {
-    public static final String BUILD = "20260930_robot4_extend_manual_v1_nolimits";
+    public static final String BUILD = "20260930_robot4_extend_manual_v2_profile_nolimits";
     private static final long PERIOD_NS = 20_000_000L;
+    private static final double TARGET_MIN_DEG = 1.0, TARGET_MAX_DEG = 75.0;
+    private static final double TARGET_PROFILE_DPS = 50.0;
     private static double clamp(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
 
     @Override public void runOpMode() throws InterruptedException {
@@ -34,7 +36,8 @@ public final class Extend_ManualTune_R4 extends LinearOpMode {
                 meta.println("kd_start=" + c.kd); meta.println("gravity_cos=" + c.gravityCos);
                 meta.println("gravity_constant=" + c.gravityConstant); meta.println("gravity_phase_deg=" + c.gravityPhaseDeg);
                 meta.println("friction=" + c.friction); meta.println("auto_kv_up=" + c.autoKvUp);
-                meta.println("auto_kv_down=" + c.autoKvDown); meta.println("slew_dps=" + c.autoSlewDps);
+                meta.println("auto_kv_down=" + c.autoKvDown); meta.println("target_profile_dps=" + TARGET_PROFILE_DPS);
+                meta.println("target_min_deg=" + TARGET_MIN_DEG); meta.println("target_max_deg=" + TARGET_MAX_DEG);
                 meta.println("limits=none; output clamped only to +/-1");
             }
 
@@ -55,15 +58,21 @@ public final class Extend_ManualTune_R4 extends LinearOpMode {
                 previousAngle = angle; previousNs = begin;
 
                 boolean a = gamepad1.a && !wasA, b = gamepad1.b && !wasB;
-                boolean up = gamepad1.dpad_up && !wasUp, down = gamepad1.dpad_down && !wasDown;
+                boolean up = gamepad1.dpad_up, down = gamepad1.dpad_down;
                 boolean left = gamepad1.dpad_left && !wasLeft, right = gamepad1.dpad_right && !wasRight;
                 boolean x = gamepad1.x && !wasX, y = gamepad1.y && !wasY;
                 String event = "";
                 if (b) { stopped = true; armed = false; event = "LATCH_STOP"; }
                 if (a && !stopped) { armed = true; target = goal = angle; integral = previousError = 0; event = "ARM"; }
                 if (armed) {
-                    if (up) { goal += 2; event = "TARGET_UP"; }
-                    if (down) { goal -= 2; event = "TARGET_DOWN"; }
+                    if (up && !down) {
+                        goal = clamp(goal + TARGET_PROFILE_DPS * dt, TARGET_MIN_DEG, TARGET_MAX_DEG);
+                        if (!wasUp) event = "TARGET_UP";
+                    }
+                    if (down && !up) {
+                        goal = clamp(goal - TARGET_PROFILE_DPS * dt, TARGET_MIN_DEG, TARGET_MAX_DEG);
+                        if (!wasDown) event = "TARGET_DOWN";
+                    }
                     if (right) { kd = clamp(kd + .00025, 0, .02); event = "KD_UP"; }
                     if (left) { kd = clamp(kd - .00025, 0, .02); event = "KD_DOWN"; }
                     if (y) { kp = clamp(kp + .005, 0, .5); event = "KP_UP"; }
@@ -73,7 +82,7 @@ public final class Extend_ManualTune_R4 extends LinearOpMode {
                 double ff=0,p=0,i=0,d=0,requested=0,sent=0;
                 if (armed && deadman) {
                     double oldTarget = target;
-                    target += clamp(goal - target, -c.autoSlewDps * dt, c.autoSlewDps * dt);
+                    target = goal;
                     double targetVelocity = (target - oldTarget) / dt;
                     double error = target - angle;
                     integral = clamp(integral + error * dt, -.5, .5);
@@ -89,7 +98,7 @@ public final class Extend_ManualTune_R4 extends LinearOpMode {
                 writer.offer(((begin-origin)/1e6)+","+(stopped?"STOPPED":armed?"ACTIVE":"MONITOR")+","+event+","+angle+","+velocity+","+target+","+goal+","+kp+","+ki+","+kd+","+ff+","+p+","+i+","+d+","+requested+","+sent+","+current+","+(deadman?1:0));
                 if (begin - lastTelemetry > 150_000_000L) {
                     telemetry.addData("Build", BUILD); telemetry.addData("State", stopped?"STOPPED":armed?"ACTIVE":"MONITOR");
-                    telemetry.addData("Controls", "RB deadman; A arm; Up/Down target; Left/Right Kd; X/Y Kp; B stop");
+                    telemetry.addData("Controls", "RB deadman; A arm; hold Up/Down: target 1..75 at 50dps; Left/Right Kd; X/Y Kp; B stop");
                     telemetry.addData("Angle / target / goal", "%.2f / %.2f / %.2f", angle,target,goal);
                     telemetry.addData("Kp / Ki / Kd", "%.5f / %.5f / %.5f", kp,ki,kd);
                     telemetry.addData("Out = FF + P + I + D", "%.3f = %.3f + %.3f + %.3f + %.3f", sent,ff,p,i,d);
