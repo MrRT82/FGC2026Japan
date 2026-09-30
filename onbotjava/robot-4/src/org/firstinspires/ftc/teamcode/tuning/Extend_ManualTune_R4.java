@@ -9,7 +9,7 @@ import java.io.*;
 /** Robot 4 interactive PID tuning with the same FF law as Extend_TuneAuto_R4. */
 @TeleOp(name="Extend_ManualTune_R4", group="1_DIAG")
 public final class Extend_ManualTune_R4 extends LinearOpMode {
-    public static final String BUILD = "20260930_robot4_extend_manual_v4_speed_nolimits";
+    public static final String BUILD = "20260930_robot4_extend_manual_v5_speed_nolimits";
     private static final long PERIOD_NS = 20_000_000L;
     private static final double TARGET_MIN_DEG = 1.0, TARGET_MAX_DEG = 75.0;
     private static double clamp(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -51,7 +51,7 @@ public final class Extend_ManualTune_R4 extends LinearOpMode {
                 double maxV = pot.getMaxVoltage(), potV = pot.getVoltage();
                 angle = maxV > 0 ? potV / maxV * 135.0 : Double.NaN;
                 double dt = previousNs == 0 ? .020 : (begin - previousNs) / 1e9;
-                if (!ExtendTuneConfig.finite(angle) || dt < .002 || dt > .100) { stopped = true; armed = false; }
+                if (!ExtendTuneConfig.finite(angle) || dt < .002 || dt > .100) stopped = true;
                 if (previousNs == 0) { previousAngle = angle; target = goal = angle; }
                 else velocity += .35 * ((angle - previousAngle) / dt - velocity);
                 previousAngle = angle; previousNs = begin;
