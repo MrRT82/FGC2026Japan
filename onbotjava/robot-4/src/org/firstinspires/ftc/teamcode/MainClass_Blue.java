@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-10-02 JST
+// 変更内容: 共通展開PIDFを使用し、終了/例外時に展開をスルーなしで停止。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -89,6 +89,7 @@ public class MainClass_Blue extends LinearOpMode {
         intakeController = new IntakeController(hardware);
         feedController = new FeedController(hardware);
         extendController = new ExtendController(hardware);
+        try {
         imuController = new ImuController(hardware);
         driveAssist = new DriveAssist();
         distance = new Distance(hardware.distanceSensor, imuController);
@@ -252,7 +253,9 @@ public class MainClass_Blue extends LinearOpMode {
             }
 
             if (isStart) {
+                if (isStopRequested()) break;
                 extendController.extend_loop();
+                if (isStopRequested()) break;
                 if (gamepad1.left_bumper) {
                     extendController.extendDown();
                 }
@@ -670,9 +673,14 @@ public class MainClass_Blue extends LinearOpMode {
 
         }
 
-        // 通常終了時の後処理。例外経路はtry/finally化が必要。
-        distance.stopReader();
-        logger.close();
+        } finally {
+            // ログ保存や測距スレッドの終了待ちより先に、展開へ即時0を送る。
+            try { extendController.stop(); }
+            finally {
+                try { if (distance != null) distance.stopReader(); }
+                finally { if (logger != null) logger.close(); }
+            }
+        }
     }
 
     // 目標速度の変更に送り閾値を追従させる。非射撃中は待機速度を維持する。

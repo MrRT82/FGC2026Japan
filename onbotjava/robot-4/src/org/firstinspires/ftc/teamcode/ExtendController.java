@@ -1,7 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-27 11:20:42 JST (UTC+09:00) 
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
-//          　pote_Upなどの角度を4号機に合わせ、REVERSE_TIME_MSも二倍にした(栗原)
+// 最終変更: 2026-10-02 JST
+// 変更内容: 四号機の方向別PIDFと非対称出力スルーを通常Blue/Redへ統合。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -29,9 +28,11 @@ public class ExtendController {
     double current;
 
     double integral = 0;
-    double kp = 0.0175;
-    double ki = 0.005;
-    double kd = 0.000;
+    private static final double KP_UP = 0.07, KI_UP = 0.005, KD_UP = 0.0015;
+    private static final double KP_DOWN = 0.07, KI_DOWN = 0.005, KD_DOWN = 0.0025;
+    double kp = KP_UP;
+    double ki = KI_UP;
+    double kd = KD_UP;
     double output;
     double error;
     double prevError = 0;
@@ -40,42 +41,50 @@ public class ExtendController {
     private static final double TARGET_MIN_DEG = -2;
     private static final double TARGET_MAX_DEG = 88;
 
-    // 重力FFと摩擦FFを使用。初動の100%上書きは削除済み。
+    // ManualTuneと同じ12.6V基準のduty値。実測電圧による追加補正は行わない。
     public boolean ffEnabled = true;
 
-    private static final double KG_AMP   = 0.0638;
-    private static final double KG_CONST = 0.0694;
-    private static final double KS_FF    = 0.123;
+    private static final double FF_REFERENCE_V = 12.6;
+    private static final double KG = 1.9969002748 / FF_REFERENCE_V;
+    private static final double KV = 0.0404679237 / FF_REFERENCE_V;
+    private static final double FC_UP = 0.9482379897 / FF_REFERENCE_V;
+    private static final double FC_DOWN = 1.9725096967 / FF_REFERENCE_V;
+    private static final double FS_UP = 0.9624524741 / FF_REFERENCE_V;
+    private static final double FS_DOWN = 2.5390997778 / FF_REFERENCE_V;
 
     private static final double FF_DEADBAND_DEG = 2.0;
-
-    // 目標方向へ十分動いているときは摩擦FFを切り、加速し過ぎを防ぐ。
-    private static final double KS_RATE_CUT_DPS = 15.0;
+    private static final double STATIC_TARGET_VELOCITY_DPS = 0.5;
+    private static final double DRIVE_SLEW_PER_20MS = 0.03;
+    private static final double BRAKE_SLEW_PER_20MS = 0.08;
+    private static final double MOTION_THRESHOLD_DPS = 2.0;
 
     private static final double VEL_ALPHA = 0.35;
 
-    private final double gravity_offset_angle = 17.0;
+    // Robot 4 survey: raw sensor angle 20 deg is physical horizontal (gravity angle 0 deg).
+    private final double gravity_offset_angle = -20.0;
     private double angle = 0;
 
     public double ffOut = 0;
     public double pidOut = 0;
+    public double targetVelocity = 0;
+    public double requestedOutput = 0;
+    public double slewLimit = 0;
+    public int pidDirection = 0; // 保持中は最後の目標プロファイル方向を維持。
 
-    private static final double TARGET_SLEW_DPS      = 50.0;
+    private static final double TARGET_SLEW_DPS      = 25.0;
     private static final double TARGET_SLEW_FAST_DPS = 100.0;
+    private static final double PROFILE_ACCEL_DPS2 = 100.0;
     private double slewRate   = TARGET_SLEW_DPS;
-
-    private static final double EXTEND_UP_DPS = 50.0;
+    private double profileVelocity = 0;
 
     private final ElapsedTime loopTimer = new ElapsedTime();
     private double dtActual = 0.020;
     private static final double DT_MIN = 0.002;
     private static final double DT_MAX = 0.100;
-    private double targetGoal = 80;
+    private double targetGoal = 75;
     private boolean slewActive = false;
-
-    // falseでは初期目標76degへ向かう。trueなら初回の現在角度を保持する。
-    private static final boolean SNAP_TARGET_ON_FIRST_LOOP = false;
     private boolean targetInitialized = false;
+    private boolean profileNeedsSync = true;
 
     private static final double STUCK_RANGE_MIN = 15.0;
     private static final double STUCK_RANGE_MAX = 70.0;
@@ -148,7 +157,10 @@ public class ExtendController {
     }
 
     public double readAngle(){
-        return (pote.getVoltage() / pote.getMaxVoltage()) * 270 / 2 - pote_offset;
+        double voltage = pote.getVoltage();
+        double maxVoltage = pote.getMaxVoltage();
+        if (!finite(voltage) || !finite(maxVoltage) || maxVoltage <= 0) return Double.NaN;
+        return voltage / maxVoltage * 135.0 - pote_offset;
     }
 
     private static double clampTarget(double deg){
@@ -165,6 +177,9 @@ public class ExtendController {
 
     // 最終目標へ指定deg/sで追従する。
     public void setTargetSlew(double deg, double slewDegPerSec){
+        if (!finite(deg) || !finite(slewDegPerSec)) {
+            throw new IllegalArgumentException("Non-finite extension target/rate");
+        }
         targetGoal  = clampTarget(deg);
         slewRate    = Math.max(1.0, slewDegPerSec);
         slewActive  = true;
@@ -172,42 +187,28 @@ public class ExtendController {
     }
 
     public void snapTarget(double deg){
+        if (!finite(deg)) throw new IllegalArgumentException("Non-finite extension target");
         targetAngle = clampTarget(deg);
         targetGoal  = targetAngle;
         slewActive  = false;
+        profileVelocity = targetVelocity = 0;
         commandDestination(targetGoal);
     }
 
     public void extendDown(){
-        targetAngle = pote_Down;
-        targetGoal  = targetAngle;
-        slewActive  = false;
-        commandDestination(pote_Down);
+        setTarget(pote_Down);
     }
     public void extendMiddle(){
-        targetAngle = pote_Middle;
-        targetGoal  = targetAngle;
-        slewActive  = false;
-        commandDestination(pote_Middle);
+        setTarget(pote_Middle);
     }
 
-    // 収納目標を即時設定する。出力自体は通常のPID+FFで決まる。
+    // 既存呼出名を維持。収納の最終目標を設定し、25deg/s・100deg/s^2で追従する。
     public void extendUpNow(){
-        targetAngle = pote_Up;
-        targetGoal  = targetAngle;
-        slewActive  = false;
-        commandDestination(pote_Up);
+        setTarget(pote_Up);
     }
 
     public void extendUp(){
-        if (!isStuck && targetAngle < pote_Up) {
-
-            targetAngle = Math.min(pote_Up, targetAngle + EXTEND_UP_DPS * dtActual);
-            targetGoal  = targetAngle;
-            slewActive  = false;
-
-            commandDestination(pote_Up);
-        }
+        if (!isStuck) setTarget(pote_Up);
     }
 
     private void clearFaults(){
@@ -233,30 +234,84 @@ public class ExtendController {
         }
     }
 
-    // 目標の移動量は指定速度×実測dt。
+    // 目標までの残距離で減速し、到達時は目標を越えない。
     private void slewTarget(){
+        targetVelocity = 0;
         if (!slewActive) return;
-
-        double step = slewRate * dtActual;
-        double d = targetGoal - targetAngle;
-        if (Math.abs(d) <= step) {
+        double oldTarget = targetAngle;
+        double remaining = targetGoal - oldTarget;
+        double maxDelta = PROFILE_ACCEL_DPS2 * dtActual;
+        // 毎周期の速度を積分する離散系の停止距離。sqrt(2*a*d)だけでは
+        // 最後の周期に減速が間に合わず、目標到達時の速度が急変する。
+        double fullSteps = Math.floor((Math.sqrt(1.0
+                + 8.0 * Math.abs(remaining) / (maxDelta * dtActual)) - 1.0) / 2.0);
+        double arrivalSpeed = Math.abs(remaining) / ((fullSteps + 1.0) * dtActual)
+                + maxDelta * fullSteps / 2.0;
+        double desiredVelocity = Math.signum(remaining)
+                * Math.min(slewRate, arrivalSpeed);
+        profileVelocity += Math.max(-maxDelta, Math.min(maxDelta, desiredVelocity - profileVelocity));
+        double step = profileVelocity * dtActual;
+        if (remaining == 0 || (step * remaining > 0 && Math.abs(step) >= Math.abs(remaining))) {
             targetAngle = targetGoal;
-            slewActive  = false;
+            profileVelocity = 0;
+            slewActive = false;
         } else {
-            targetAngle += (d > 0 ? step : -step);
+            // 初期実角度が目標範囲外でも、一度に境界へ飛ばさず範囲内へ戻る。
+            double low = Math.min(TARGET_MIN_DEG, oldTarget);
+            double high = Math.max(TARGET_MAX_DEG, oldTarget);
+            targetAngle = Math.max(low, Math.min(high, oldTarget + step));
+            if (targetAngle != oldTarget + step) profileVelocity = 0;
         }
+        targetVelocity = (targetAngle - oldTarget) / dtActual;
+    }
+
+    private static boolean finite(double value){
+        return !Double.isNaN(value) && !Double.isInfinite(value);
+    }
+
+    // 逆転/停止から復帰するときは最終行き先を保ち、現在位置から再出発する。
+    private void syncProfile(){
+        targetAngle = current;
+        profileVelocity = targetVelocity = integral = prevError = 0;
+        slewActive = targetGoal != targetAngle;
+        profileNeedsSync = false;
+        targetInitialized = true;
+        stallSince = poteStuckStart = 0;
+        stallRefAngle = stallStartAngle = prevStuckAngle = current;
+        prevStuckCheckMs = System.currentTimeMillis();
     }
 
     private double gravityFF(double angleDeg){
-        return KG_AMP * Math.cos(Math.toRadians(angleDeg)) + KG_CONST;
+        return KG * Math.cos(Math.toRadians(angleDeg));
     }
 
     private double frictionFF(double error){
-        if (poteVel * Math.signum(error) > KS_RATE_CUT_DPS) return 0.0;
-        double x = error / FF_DEADBAND_DEG;
-        if (x >  1.0) x =  1.0;
-        if (x < -1.0) x = -1.0;
-        return KS_FF * x;
+        boolean moving = Math.abs(targetVelocity) >= STATIC_TARGET_VELOCITY_DPS;
+        double direction = Math.signum(moving ? targetVelocity : error);
+        double magnitude = direction >= 0 ? (moving ? FC_UP : FS_UP)
+                : (moving ? FC_DOWN : FS_DOWN);
+        double fade = moving ? 1.0 : Math.min(1.0, Math.abs(error) / FF_DEADBAND_DEG);
+        return direction * magnitude * fade;
+    }
+
+    private void selectPidDirection(){
+        int direction = targetVelocity > 0 ? 1 : targetVelocity < 0 ? -1 : pidDirection;
+        if (direction != pidDirection) integral = 0;
+        pidDirection = direction;
+        kp = direction < 0 ? KP_DOWN : KP_UP;
+        ki = direction < 0 ? KI_DOWN : KI_UP;
+        kd = direction < 0 ? KD_DOWN : KD_UP;
+    }
+
+    // 本番25ms周期を維持。20ms基準の変化率を実測dtへ換算する。
+    private double slewOutput(double requested){
+        double desired = Math.max(-1.0, Math.min(1.0, requested));
+        // キャッシュが送信を省略した場合も、最後に実際に送った出力を基準にする。
+        double previousSent = extendOut.getLast();
+        double delta = desired - previousSent;
+        boolean braking = Math.abs(poteVel) >= MOTION_THRESHOLD_DPS && delta * poteVel < 0;
+        slewLimit = (braking ? BRAKE_SLEW_PER_20MS : DRIVE_SLEW_PER_20MS) * dtActual / 0.020;
+        return Math.max(previousSent - slewLimit, Math.min(previousSent + slewLimit, desired));
     }
 
     // 保護停止はキャッシュの許容差を迂回し、必ず0を送る。
@@ -266,7 +321,16 @@ public class ExtendController {
         output = 0;
         integral = 0;
         prevError = 0;
+        requestedOutput = slewLimit = targetVelocity = profileVelocity = 0;
+        profileNeedsSync = true;
         extendOut.setNow(0.0);
+    }
+
+    // OpMode停止・非常停止/deadmanを持つ呼出元向け。センサーやスルーを介さず0。
+    public void stop(){
+        stopOutput();
+        isStuck = reverse = false;
+        poteStuckStart = 0;
     }
 
 
@@ -279,14 +343,32 @@ public class ExtendController {
 
         double measured = loopTimer.seconds();
         loopTimer.reset();
-        if (measured < DT_MIN || measured > DT_MAX) {
+        if (!targetInitialized) {
+            // INIT/START待ち時間を初回のプロファイル・出力スルーへ加算しない。
+            dtActual = 0.025;
+        } else if (measured < DT_MIN || measured > DT_MAX) {
             dtActual = (measured > DT_MAX) ? DT_MAX : 0.020;
         } else {
             dtActual = measured;
         }
 
-        current = (pote.getVoltage() / pote.getMaxVoltage()) * 270 / 2 - pote_offset;
+        try {
+            current = readAngle();
+        } catch (RuntimeException e) {
+            poteFault = true;
+            velInitialized = false;
+            stopOutput();
+            throw e;
+        }
         angle   = current + gravity_offset_angle;
+
+        // 無効値をEMAへ入れず、回復時もNaNを残さない。
+        poteFault = !finite(current) || current < POTE_ANGLE_MIN || current > POTE_ANGLE_MAX;
+        if (poteFault) {
+            velInitialized = false;
+            stopOutput();
+            return;
+        }
 
         if (!velInitialized) {
             prevAngleForVel = current;
@@ -298,24 +380,7 @@ public class ExtendController {
             prevAngleForVel = current;
         }
 
-        poteFault = (current < POTE_ANGLE_MIN) || (current > POTE_ANGLE_MAX);
-        if (poteFault) {
-            stopOutput();
-            return;
-        }
-
-        if (SNAP_TARGET_ON_FIRST_LOOP && !targetInitialized) {
-            targetInitialized = true;
-            targetAngle   = clampTarget(current);
-            targetGoal    = targetAngle;
-            slewActive    = false;
-            integral      = 0;
-            prevError     = 0;
-            prevPoteValue = current;
-            stallRefAngle = current;
-        }
-
-        // 詰まり後は500ms逆転する。逆転処理は電力譲渡より優先。
+        // 詰まり後は従来どおり1000ms、-0.55で逆転。PIDF/スルーは迂回する。
         if (isStuck) {
             if (System.currentTimeMillis() - stuckReverseStart < REVERSE_TIME_MS) {
                 reverse = true;
@@ -323,6 +388,9 @@ public class ExtendController {
                 pidOut = -REVERSE_DUTY;
                 output = -REVERSE_DUTY;
                 extendOut.set(output);
+                requestedOutput = output;
+                targetVelocity = profileVelocity = slewLimit = 0;
+                profileNeedsSync = true;
                 integral  = 0;
                 prevError = 0;
                 return;
@@ -335,6 +403,7 @@ public class ExtendController {
 
                 prevStuckCheckMs = System.currentTimeMillis();
                 prevStuckAngle   = current;
+                profileNeedsSync = true;
             }
         }
 
@@ -354,7 +423,14 @@ public class ExtendController {
             return;
         }
 
+        // 停止ラッチ中はプロファイルを進めず、0出力を維持する。
+        if (stallFault) {
+            stopOutput();
+            return;
+        }
+        if (!targetInitialized || profileNeedsSync) syncProfile();
         slewTarget();
+        selectPidDirection();
 
         long nowMs = System.currentTimeMillis();
         if (prevStuckCheckMs == 0) {
@@ -396,61 +472,62 @@ public class ExtendController {
             stallSince    = 0;
         }
 
-if (targetAngle >= STALL_TARGET_MIN_DEG) {
-
-    if (Math.abs(output) >= STALL_DUTY_MIN) {
-        if (stallSince == 0) {
-            stallSince      = System.currentTimeMillis();
-            stallStartAngle = current;
-        } else if (Math.abs(current - stallStartAngle) >= STALL_MOVE_DEG) {
-
-            stallSince      = System.currentTimeMillis();
-            stallStartAngle = current;
-        } else if (System.currentTimeMillis() - stallSince > STALL_TIME_MS) {
-            stallFault = true;
-            lastJamMs  = System.currentTimeMillis();
+        if (targetAngle >= STALL_TARGET_MIN_DEG) {
+            if (Math.abs(output) >= STALL_DUTY_MIN) {
+                if (stallSince == 0) {
+                    stallSince = System.currentTimeMillis();
+                    stallStartAngle = current;
+                } else if (Math.abs(current - stallStartAngle) >= STALL_MOVE_DEG) {
+                    stallSince = System.currentTimeMillis();
+                    stallStartAngle = current;
+                } else if (System.currentTimeMillis() - stallSince > STALL_TIME_MS) {
+                    stallFault = true;
+                    lastJamMs = System.currentTimeMillis();
+                }
+            } else {
+                stallSince = 0;
+            }
+            if (stallFault) {
+                stopOutput();
+                return;
+            }
+        } else {
+            stallSince = 0;
         }
-    } else {
-        stallSince = 0;
-    }
-
-    if (stallFault) {
-        stopOutput();
-        return;
-    }
-
-} else {
-
-    stallSince = 0;
-}
 
         error = targetAngle - current;
         integral += error * dtActual;
         // 積分を±0.5へ制限する。現在ki=0.005なので出力寄与は最大±0.0025。
         integral  = Math.min(0.5, Math.max(integral, -0.5));
-        double deriv = (error - prevError) / dtActual;
+        double deriv = targetVelocity - poteVel;
 
-        ffOut  = ffEnabled ? (gravityFF(angle) + frictionFF(error)) : 0.0;
+        ffOut  = ffEnabled ? (gravityFF(angle) + KV * targetVelocity + frictionFF(error)) : 0.0;
         pidOut = kp * error + ki * integral + kd * deriv;
 
-        output = ffOut + pidOut;
-        output = Math.max(-1.0, Math.min(1.0, output));
+        requestedOutput = ffOut + pidOut;
+        output = Math.max(-1.0, Math.min(1.0, requestedOutput));
 
         if (currentLimit > 0) {
-    long nowCur = System.currentTimeMillis();
-    if (nowCur - lastCurReadMs >= CUR_READ_MS) {
-        lastCurReadMs = nowCur;
-        try { lastMotorCur = extend.getCurrent(CurrentUnit.AMPS); }
-        catch (Exception ignored) { }
-        if (lastMotorCur > currentLimit) curScale -= 0.06;
-        else if (curScale < 1.0)         curScale += 0.03;
-        if (curScale < 0.4) curScale = 0.4;
-        if (curScale > 1.0) curScale = 1.0;
-    }
-    output *= curScale;
-}
+            long nowCur = System.currentTimeMillis();
+            if (nowCur - lastCurReadMs >= CUR_READ_MS) {
+                lastCurReadMs = nowCur;
+                try { lastMotorCur = extend.getCurrent(CurrentUnit.AMPS); }
+                catch (Exception ignored) { }
+                if (lastMotorCur > currentLimit) curScale -= 0.06;
+                else if (curScale < 1.0) curScale += 0.03;
+                if (curScale < 0.4) curScale = 0.4;
+                if (curScale > 1.0) curScale = 1.0;
+            }
+            output *= curScale;
+        }
 
-extendOut.set(output);
-prevError = error;
+        if (!finite(output)) {
+            stopOutput();
+            return;
+        }
+        output = slewOutput(output);
+        extendOut.set(output);
+        output = extendOut.getLast();
+        prevError = error;
     }
 }
