@@ -10,7 +10,9 @@ SOURCE = ROOT / 'src/org/firstinspires/ftc/teamcode'
 BASELINE = '1547d2a6e6a9d51c240ed6242b96917c692d96f5'
 # Reviewed changes to normal sources after the baseline. 2026-09-30: lock servos rotate with the
 # climb at half speed, climb directions reversed, and the climb runs up then down on timers.
-INTENDED_CHANGES = {'ClimbController.java', 'ClimbSequence.java', 'RobotHardware.java'}
+# 2026-10-02: the climb roller runs after the descent, its direction set by alliance and heading.
+INTENDED_CHANGES = {'ClimbController.java', 'ClimbSequence.java', 'RobotHardware.java',
+                    'MainClass_Blue.java', 'MainClass_Red.java'}
 
 
 class OpModeIsolationTest(unittest.TestCase):

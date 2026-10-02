@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-27 JST
-// 変更内容: 4号機専用の電源ログを追加。既存電流/電圧取得を記録し余分に取得しない。
+// 最終変更: 2026-10-02 JST (UTC+09:00)
+// 変更内容: 4号機専用の電源ログを追加。既存電流/電圧取得を記録し余分に取得しない。 下降後に進入方位でクライムローラーを回す(case 2)。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -72,6 +72,8 @@ public class MainClass_Blue_Timing extends LinearOpMode {
 
     // 登坂の表裏切替には70/110degのヒステリシスを設ける。
     boolean climbFrontSide = true;
+    // 下降後のローラー出力。表側(登坂基準方位±90°以内)で使い、裏側は符号を反転。Blue: 表 + / 裏 -
+    static final double FRONT_ROLLER_POWER = 1.0;
     static final double CLIMB_FLIP_OUT  = 110.0;
     static final double CLIMB_FLIP_BACK = 70.0;
 
@@ -389,11 +391,8 @@ public class MainClass_Blue_Timing extends LinearOpMode {
                         climbController.climbOpen();
                         break;
                     case 2:
-                        if(!climbController.isBottomLimit()){
-                            climbController.climbDown();
-                        } else {
-                            climbController.climbStop();
-                        }
+                        // 下降(時間/下端センサーで停止)→終了時の方位でローラーを回す。
+                        climbController.climbDownThenRoller(Angle, climbTarget, FRONT_ROLLER_POWER);
                         break;
                     case 3:
                         climbController.climbStop();

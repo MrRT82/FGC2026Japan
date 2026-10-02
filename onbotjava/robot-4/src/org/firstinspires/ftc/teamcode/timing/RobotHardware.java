@@ -1,6 +1,6 @@
 // ============================================================================
 // 最終変更: 2026-09-30 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離(通常Blue/Redとは共有しない)。ロックサーボ左右を無限回転にし、登坂サーボと連動し、登坂の1/2の速さで回す方式へ変更。登坂サーボ4つとロックの向きを反転。
+// 変更内容: Blue計測専用パッケージへ隔離(通常Blue/Redとは共有しない)。2026-10-01 ロックサーボを無限回転で運用し向きを入れ替え。登坂サーボ4つの向きを反転。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -89,9 +89,9 @@ public class RobotHardware {
         rightDown_Servo.setDirection(Servo.Direction.FORWARD);
         leftUp_Servo.setDirection(Servo.Direction.FORWARD);
         leftDown_Servo.setDirection(Servo.Direction.REVERSE);
-        // 2026-09-30: ロックも反転(旧: 右F/左R)。
-        rightLock_Servo.setDirection(Servo.Direction.REVERSE);
-        leftLock_Servo.setDirection(Servo.Direction.FORWARD);
+        // 2026-10-01: ロックの向きを入れ替え(右F/左R)。
+        rightLock_Servo.setDirection(Servo.Direction.FORWARD);
+        leftLock_Servo.setDirection(Servo.Direction.REVERSE);
 
         // 初期化時に登坂サーボとロック(いずれも無限回転)を停止(0.5)へ指令する。
         rightUp_Servo.setPosition(0.5);

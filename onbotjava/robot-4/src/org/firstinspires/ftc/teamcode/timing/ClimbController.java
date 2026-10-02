@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-30 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離(通常Blue/Redとは共有しない)。ロックサーボ左右を無限回転にし、登坂サーボと連動し、登坂の1/2の速さで回す方式へ変更。上昇・下降を時間で停止。
+// 最終変更: 2026-10-02 JST (UTC+09:00)
+// 変更内容: Blue計測専用パッケージへ隔離(通常Blue/Redとは共有しない)。上昇はロックのみ全速、下降は登坂とロックを全速。上昇・下降を時間で停止。下降後に進入方位でローラーを回す。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -57,13 +57,11 @@ public class ClimbController {
                 + leftUpC.getSkipRate() + leftDownC.getSkipRate()) / 4.0;
     }
     // ロック機構は無限回転サーボで、登坂サーボと連動して回る。0.5で停止。
-    // 速さは登坂サーボの1/2。速さは0.5からの差で0〜0.5(0.5が全速)。
+    // 速さは0.5からの差で0〜0.5(0.5が全速)。上昇・下降とも全速で回す。
     // 回す向きが逆なら、LOCK_DIRを-1にする。
     private static final double LOCK_STOP = 0.5;
-    private static final double CLIMB_SPEED = 0.5;          // climbUp/Downの1.0/0.0に相当
-    private static final double LOCK_SPEED_RATIO = 0.5;     // 登坂に対するロックの速さ
-    private static final double LOCK_UP_SPEED = CLIMB_SPEED * LOCK_SPEED_RATIO;
-    private static final double LOCK_DOWN_SPEED = CLIMB_SPEED * LOCK_SPEED_RATIO;
+    private static final double LOCK_UP_SPEED = 0.5;
+    private static final double LOCK_DOWN_SPEED = 0.5;
     private static final double LOCK_DIR = 1;
     private static final double LOCK_UP_OUT = LOCK_STOP + LOCK_DIR * LOCK_UP_SPEED;
     private static final double LOCK_DOWN_OUT = LOCK_STOP - LOCK_DIR * LOCK_DOWN_SPEED;
@@ -92,11 +90,12 @@ public class ClimbController {
     }
     public void climbUp(){
         if (!withinTime(1, CLIMB_UP_MS)) { stopAll(); return; }
+        // 上昇中はロックだけを回し、登坂サーボは止める。
         setLock(LOCK_UP_OUT);
-        rightUpC.set(1.0);
-        rightDownC.set(1.0);
-        leftUpC.set(1.0);
-        leftDownC.set(1.0);
+        rightUpC.set(0.5);
+        rightDownC.set(0.5);
+        leftUpC.set(0.5);
+        leftDownC.set(0.5);
     }
     public void climbDown(){
         if (!withinTime(-1, CLIMB_DOWN_MS)) { stopAll(); return; }
@@ -108,6 +107,31 @@ public class ClimbController {
     }
     public void climbStop(){
         stopAll();
+        rollerOut.set(0.0);
+    }
+
+    // 下降が終わったら(時間切れ、または下端センサー)ローラーを回し始める。
+    // 向きは下降終了時の方位で決める: 登坂の基準方位から±90°以内なら表側。
+    // frontRollerPowerは表側の出力(Blue +1.0、Red -1.0)。裏側はその逆。
+    // ローラーは次のボタン(ClimbSequenceのDONE)でclimbStop()が呼ばれるまで回り続ける。
+    private boolean downFinished = false;
+    private double rollerPower = 0.0;
+    public void climbDownThenRoller(double heading, double climbTarget, double frontRollerPower){
+        if (!downFinished) {
+            if (!isBottomLimit() && withinTime(-1, CLIMB_DOWN_MS)) { climbDown(); return; }
+            downFinished = true;
+            boolean front = Math.abs(normalize(heading - climbTarget)) <= 90.0;
+            rollerPower = front ? frontRollerPower : -frontRollerPower;
+        }
+        stopAll();
+        rollerOut.set(rollerPower);
+    }
+    public double getRollerPower(){ return downFinished ? rollerPower : 0.0; }
+    private static double normalize(double deg){
+        double a = deg % 360.0;
+        if (a > 180.0) a -= 360.0;
+        if (a < -180.0) a += 360.0;
+        return a;
     }
     private void stopAll(){
         setLock(LOCK_STOP);

@@ -12,15 +12,16 @@ import java.util.*;
  *
  * Hold gamepad1 A: runs (first press up, next press down, alternating). Release: stops and
  * records the held time. Outputs, names and directions match RobotHardware/ClimbController
- * (climb full speed, lock at half speed, down reverses both). B: stop and ignore input until
+ * (up: lock only at full speed; down: climb and lock at full speed). B: stop and ignore input until
  * released. Log: /sdcard/FIRST/logs/robot4_climb_time_*.csv
  */
 @TeleOp(name="Climb_TimeMeasure_R4", group="1_DIAG")
 public final class Climb_TimeMeasure_R4 extends LinearOpMode {
-    public static final String BUILD = "20260930_robot4_climb_time_v1";
-    // Same as ClimbController: 0.5 stop, lock speed = 1/2 of climb.
-    private static final double STOP = 0.5, CLIMB_UP = 1.0, CLIMB_DOWN = 0.0;
-    private static final double LOCK_UP = 0.75, LOCK_DOWN = 0.25;
+    public static final String BUILD = "20260930_robot4_climb_time_v5";
+    // Same as ClimbController: 0.5 stop. Up turns only the lock at full speed (climb held
+    // stopped); down turns the climb and the lock at full speed.
+    private static final double STOP = 0.5, CLIMB_UP = 0.5, CLIMB_DOWN = 0.0;
+    private static final double LOCK_UP = 1.0, LOCK_DOWN = 0.0;
 
     private Servo rightUp, rightDown, leftUp, leftDown, rightLock, leftLock;
 
@@ -42,8 +43,8 @@ public final class Climb_TimeMeasure_R4 extends LinearOpMode {
         rightDown.setDirection(Servo.Direction.FORWARD);
         leftUp.setDirection(Servo.Direction.FORWARD);
         leftDown.setDirection(Servo.Direction.REVERSE);
-        rightLock.setDirection(Servo.Direction.REVERSE);
-        leftLock.setDirection(Servo.Direction.FORWARD);
+        rightLock.setDirection(Servo.Direction.FORWARD);
+        leftLock.setDirection(Servo.Direction.REVERSE);
         set(STOP, STOP);
 
         File dir = new File("/sdcard/FIRST/logs");

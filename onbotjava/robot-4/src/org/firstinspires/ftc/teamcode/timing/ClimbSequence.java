@@ -1,15 +1,15 @@
 // ============================================================================
-// 最終変更: 2026-09-30 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離(通常Blue/Redとは共有しない)。登坂を「押す→上昇(時間)→押す→下降(時間)→終了」の流れへ変更。
+// 最終変更: 2026-10-02 JST (UTC+09:00)
+// 変更内容: Blue計測専用パッケージへ隔離(通常Blue/Redとは共有しない)。登坂を「押す→上昇(時間)→押す→下降(時間)→ローラー→押す→終了」の流れへ変更。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
 
-// 登坂段階。押す(または自動)→上昇→時間で停止→押す→下降→時間で停止→以後は動かない。
-// 段階番号はメインのswitchに合わせる: 0=待機, 4=上昇, 2=下降。上昇・下降の時間停止は
-// ClimbControllerが行う。下降中は下端センサーでも止まる(メイン側の処理)。
+// 登坂段階。押す(または自動)→上昇(時間で停止)→押す→下降(時間/下端センサーで停止)→ローラー→押す→終了。
+// 段階番号はメインのswitchに合わせる: 0=待機, 4=上昇, 2=下降→ローラー, 3=終了。上昇・下降の時間停止は
+// ClimbControllerが行う。下降中は下端センサーでも止まる。
 public final class ClimbSequence {
-    public static final int WAIT = 0, UP = 4, DOWN = 2;
+    public static final int WAIT = 0, UP = 4, DOWN = 2, DONE = 3;
     private int stage = WAIT;
     private boolean primaryHeld, secondaryHeld;
     private double lastAdvanceMs = Double.NEGATIVE_INFINITY;
@@ -30,7 +30,8 @@ public final class ClimbSequence {
         if (pressed) lastAdvanceMs = nowMs;
         if (stage == WAIT && (pressed || autoUnlockDue)) stage = UP;
         else if (stage == UP && pressed) stage = DOWN;
-        // DOWNの後は段階が進まず、下降の時間が過ぎればサーボは停止したまま。
+        else if (stage == DOWN && pressed) stage = DONE;
+        // DONEの後は段階が進まず、サーボもローラーも止まったまま。
         return stage;
     }
 }
