@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 手動停止時の逆方向指令係数を0.10から0.05へ変更。
+// 最終変更: 2026-10-02 JST
+// 変更内容: 撤去した測距センサーへの依存と測距処理を削除。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -19,7 +19,6 @@ public class DriveController {
     public static final double STOP_THRESHOLD         = 0.02;
     public static final double TURN_NORMAL            = 0.7;
 
-    public static final double FORWARD_CUT_ANGLE      = 30.0;
 
     public DriveController(RobotHardware hr) {
         hardware = hr;
@@ -106,17 +105,6 @@ public class DriveController {
 
         double left  = forward - imuTurnOutput;
         double right = forward + imuTurnOutput;
-
-        return normalize(left, right);
-    }
-
-    // 角度誤差が30degへ近づくほど前後成分を減らし、旋回を優先する。
-    public DriveOutput driveWithDistanceAndImu(double distanceOutput, double imuTurnOutput, double angleError) {
-
-        double forwardWeight = clamp(1.0 - Math.abs(angleError) / FORWARD_CUT_ANGLE, 0.0, 1.0);
-
-        double left  = -distanceOutput * forwardWeight - imuTurnOutput;
-        double right = -distanceOutput * forwardWeight + imuTurnOutput;
 
         return normalize(left, right);
     }

@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.teamcode.timing;
 
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.IMU;
 import java.io.BufferedWriter;
@@ -38,7 +38,7 @@ public final class SensorTimingTest {
         hw.intakeMotor = hw.extendMotor = motor;
         ShooterController shooter = new ShooterController(hw);
         ExtendController extend = new ExtendController(hw);
-        RobotLogger logger = new RobotLogger(hw, null, new ImuController((IMU) null), extend, shooter, null);
+        RobotLogger logger = new RobotLogger(hw, null, new ImuController((IMU) null), extend, shooter);
         StringWriter sink = new StringWriter();
         BufferedWriter out = new BufferedWriter(sink);
         set(logger, "out", out);
@@ -75,21 +75,21 @@ public final class SensorTimingTest {
         check(drain(timing)[0] == 0, "A drained window must not repeat old samples");
 
         Thread producer = new Thread(() -> {
-            for (int i = 0; i < 100000; i++) timing.record(SensorTiming.DISTANCE, 1000, 4000, i % 2 == 0);
+            for (int i = 0; i < 100000; i++) timing.record(SensorTiming.TOUCH, 1000, 4000, i % 2 == 0);
         });
         producer.start();
         long count = 0, total = 0, errors = 0;
         do {
             values = drain(timing);
-            count += values[SensorTiming.DISTANCE * 4];
-            total += values[SensorTiming.DISTANCE * 4 + 1];
-            errors += values[SensorTiming.DISTANCE * 4 + 3];
+            count += values[SensorTiming.TOUCH * 4];
+            total += values[SensorTiming.TOUCH * 4 + 1];
+            errors += values[SensorTiming.TOUCH * 4 + 3];
         } while (producer.isAlive());
         producer.join();
         values = drain(timing);
-        count += values[SensorTiming.DISTANCE * 4];
-        total += values[SensorTiming.DISTANCE * 4 + 1];
-        errors += values[SensorTiming.DISTANCE * 4 + 3];
+        count += values[SensorTiming.TOUCH * 4];
+        total += values[SensorTiming.TOUCH * 4 + 1];
+        errors += values[SensorTiming.TOUCH * 4 + 3];
         check(count == 100000 && total == 300000 && errors == 50000,
                 "Concurrent export must neither lose nor duplicate readings");
 
@@ -105,12 +105,12 @@ public final class SensorTimingTest {
         check(reads.velocity(motor, SensorTiming.VELOCITY_SHOOTER) == 123.5 && calls.get() == 1,
                 "Instrumentation must preserve the value and read exactly once");
         RuntimeException expected = new IllegalStateException("simulated sensor failure");
-        DistanceSensor sensor = (DistanceSensor) Proxy.newProxyInstance(DistanceSensor.class.getClassLoader(),
-                new Class<?>[] {DistanceSensor.class}, (proxy, method, arguments) -> { throw expected; });
-        try { reads.distance(sensor); throw new AssertionError("Exception was swallowed"); }
+        TouchSensor sensor = (TouchSensor) Proxy.newProxyInstance(TouchSensor.class.getClassLoader(),
+                new Class<?>[] {TouchSensor.class}, (proxy, method, arguments) -> { throw expected; });
+        try { reads.touch(sensor); throw new AssertionError("Exception was swallowed"); }
         catch (RuntimeException actual) { check(actual == expected, "Original exception must propagate"); }
         values = drain(live);
-        check(values[SensorTiming.DISTANCE * 4] == 1 && values[SensorTiming.DISTANCE * 4 + 3] == 1,
+        check(values[SensorTiming.TOUCH * 4] == 1 && values[SensorTiming.TOUCH * 4 + 3] == 1,
                 "Failed sensor calls must be counted and timed");
         check(values[SensorTiming.VELOCITY_SHOOTER * 4] == 1,
                 "Successful hardware calls must be counted");

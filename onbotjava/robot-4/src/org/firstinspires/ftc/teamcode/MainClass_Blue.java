@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-02 17:18 JST
-// 変更内容: RT/A射撃時の目標方位をそれぞれ180deg反転。
+// 最終変更: 2026-10-02 JST
+// 変更内容: 撤去した測距センサーへの依存と測距処理を削除。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -29,7 +29,6 @@ public class MainClass_Blue extends LinearOpMode {
     private ImuController imuController;
     private DriveAssist driveAssist;
     private Discharge discharge;
-    private Distance distance;
 
     boolean prevA = false;
     boolean prevGamepad2DpadUp = false;
@@ -58,8 +57,6 @@ public class MainClass_Blue extends LinearOpMode {
 
     private static final boolean USE_LEFT_STICK_TURN = false;
 
-    // 射撃位置合わせ中、この入力を超えたら距離制御より手動前後を優先する。
-    private static final double SHOOT_MANUAL_FWD_DEADZONE = 0.15;
 
     // シューター目標はエンコーダのticks/s。standardSpeedは停止ではなく低速逆転。
     double shootSpeed = 1200;
@@ -78,7 +75,7 @@ public class MainClass_Blue extends LinearOpMode {
     @Override
     public void runOpMode() {
 
-        // 初期化：ハードウェア、各制御、測距スレッド、ログの順に準備する。
+        // 初期化：ハードウェア、各制御、ログの順に準備する。
         hardware = new RobotHardware();
         hardware.init(hardwareMap);
         driveController = new DriveController(hardware);
@@ -92,12 +89,10 @@ public class MainClass_Blue extends LinearOpMode {
         try {
         imuController = new ImuController(hardware);
         driveAssist = new DriveAssist();
-        distance = new Distance(hardware.distanceSensor, imuController);
 
         logger = new RobotLogger(hardware, hardwareMap, imuController, extendController,
-                shooterController, distance);
+                shooterController);
 
-        distance.startReader();
 
         logger.setIntake(intakeController);
         logger.setDriveAssist(driveAssist);
@@ -106,7 +101,7 @@ public class MainClass_Blue extends LinearOpMode {
         ElapsedTime climbTimer = new ElapsedTime();
         ElapsedTime allTimer = new ElapsedTime();
 
-        // MANUALキャッシュは毎周期clearBulkCache()が必須。IMUと測距は別途取得する。
+        // MANUALキャッシュは毎周期clearBulkCache()が必須。IMUは別途取得する。
         List<LynxModule> hubList = hardwareMap.getAll(LynxModule.class);
         LynxModule[] hubs = hubList.toArray(new LynxModule[0]);
         for (LynxModule h : hubs) h.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
@@ -195,8 +190,6 @@ public class MainClass_Blue extends LinearOpMode {
 
             imuController.beginLoop();
 
-            // 測距は前周期の射撃状態に応じて有効化する。別スレッドでもHub通信は共有する。
-            distance.setReaderActive((mode == RobotMode.SHOOT));
 
             logger.readOneCurrent();
             phT1 = System.nanoTime();
@@ -359,15 +352,12 @@ public class MainClass_Blue extends LinearOpMode {
 
                 phM1 = System.nanoTime();
 
-                // IMU制御は1周期1回。距離補正が現在方位を参照するため、測距更新より先に実行する。
+                // IMU制御は1周期1回。
                 if ((mode == RobotMode.SHOOT) || (mode == RobotMode.CLIMB) || (mode == RobotMode.DISCHARGE)) {
                     imuTurnOutput = imuController.update();
                     imuActive = true;
                 }
 
-                if ((mode == RobotMode.SHOOT)) {
-                    distance.update();
-                }
                 phM2 = System.nanoTime();
 
                 // 押し直しで1段進む。キャンセルは下降/上昇の停止段階へ移す。
@@ -402,7 +392,7 @@ public class MainClass_Blue extends LinearOpMode {
 
                 DriveController.DriveOutput finalOutput;
 
-                // 射撃中のRBは距離・角度合わせより優先して走行を止め、他機構への電力を確保する。
+                // 射撃中のRBは角度合わせより優先して走行を止め、他機構への電力を確保する。
                 boolean cutDriveForShot = (mode == RobotMode.SHOOT) && gamepad1.right_bumper;
 
                 // 自動旋回中も手動補助の角速度履歴を更新し、手動復帰時の差分ジャンプを防ぐ。
@@ -421,19 +411,9 @@ public class MainClass_Blue extends LinearOpMode {
                     assistActive = driveAssist.isActive();
                 }
 
-                // 距離制御を使うかどうかは生入力で判定し、手動出力には制限後の入力を使う。
-                boolean manualFwdInShoot =
-                        (mode == RobotMode.SHOOT) && Math.abs(forward) > SHOOT_MANUAL_FWD_DEADZONE;
-
-                // 優先順位：発射停止 → 距離+IMU → 手動前後+IMU → 手動補助 → 通常走行。
+                // 優先順位：発射停止 → 手動前後+IMU → 手動補助 → 通常走行。
                 if (cutDriveForShot) {
                     finalOutput = new DriveController.DriveOutput(0, 0);
-                } else if ((mode == RobotMode.SHOOT) && distance.isUsable() && !manualFwdInShoot) {
-                    finalOutput = driveController.driveWithDistanceAndImu(
-                            distance.getOutput(),
-                            imuTurnOutput,
-                            distance.getAngleError()
-                    );
                 } else if (imuActive) {
                     finalOutput = driveController.driveWithImuCorrection(
                             forwardSlewed,
@@ -448,8 +428,8 @@ public class MainClass_Blue extends LinearOpMode {
                     finalOutput = manualOutput;
                 }
 
-                // 自動制御中は未使用の手動加速制限状態をリセットし、復帰時の出力飛びを防ぐ。
-                if (cutDriveForShot || ((mode == RobotMode.SHOOT) && distance.isUsable() && !manualFwdInShoot)) {
+                // 発射停止中は未使用の手動加速制限状態をリセットし、復帰時の出力飛びを防ぐ。
+                if (cutDriveForShot) {
                     fwdSlew.reset(0.0);
                     turnSlew.reset(0.0);
                 }
@@ -560,22 +540,6 @@ public class MainClass_Blue extends LinearOpMode {
                         "%s  目標 %.1f  実角速度 %.1f deg/s  誤差 %.2f  出力 %.3f",
                         driveAssist.getModeText(), driveAssist.getTargetHeading(),
                         driveAssist.getRate(), driveAssist.getError(), driveAssist.getOutput()));
-                telemetry.addData("距離", distance.getDistance());
-                telemetry.addData("正面距離", distance.getFrontDistance());
-                telemetry.addData("距離目標", distance.getTargetDistance());
-                telemetry.addData("距離PID出力", distance.getOutput());
-                telemetry.addData("角度誤差", distance.getAngleError());
-
-                telemetry.addData("測距スレッド", String.format(Locale.US,
-                        "%s  例外 %d 回  最終サンプル %s  生値 %.1f cm",
-                        distance.isReaderRunning() ? "稼働" : "停止",
-                        distance.getReaderErrors(),
-                        distance.getSampleAgeMs() < 0 ? "まだ無い"
-                                : (distance.getSampleAgeMs() + " ms前"),
-                        distance.getSensorRaw()));
-                telemetry.addData("測距の健全性", (distance.isValid() ? "OK" : "異常")
-                        + "  連続失敗 " + distance.getFailCount() + " 回"
-                        + "  失敗率 " + (int) distance.getFailRate() + "%");
                 telemetry.addData("周期オーバーラン",
                         String.format(Locale.US, "%d / %d 回 (%.1f%%)  最大 +%.1f ms  設定 %d ms",
                                 overrunCount, loopCountTotal,
@@ -592,10 +556,7 @@ public class MainClass_Blue extends LinearOpMode {
                         : (logger.getRows() + " 行  " + logger.getPath()));
                 telemetry.addData("ドライブ", cutDriveForShot
                         ? "停止中（発射のため電流を譲っています）" : "有効");
-                telemetry.addData("前後の制御", (mode != RobotMode.SHOOT) ? "-"
-                        : manualFwdInShoot ? "ドライバー（手動優先。距離センサーを降ろしています）"
-                        : distance.isUsable() ? "距離センサー"
-                        : "ドライバー（測距が使えない）");
+                telemetry.addData("前後の制御", cutDriveForShot ? "発射中は停止" : "ドライバー");
                 telemetry.update();
                 }
                 phT5 = System.nanoTime();
@@ -674,12 +635,9 @@ public class MainClass_Blue extends LinearOpMode {
         }
 
         } finally {
-            // ログ保存や測距スレッドの終了待ちより先に、展開へ即時0を送る。
+            // ログ保存より先に、展開へ即時0を送る。
             try { extendController.stop(); }
-            finally {
-                try { if (distance != null) distance.stopReader(); }
-                finally { if (logger != null) logger.close(); }
-            }
+            finally { if (logger != null) logger.close(); }
         }
     }
 

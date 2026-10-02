@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-10-02 JST
+// 変更内容: 撤去した測距センサーへの依存と測距処理を削除。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -44,7 +44,6 @@ public class RobotLogger {
     private IntakeController intake = null;
 
     private DriveAssist assist = null;
-    private final Distance distance;
 
     private LynxModule[] hubs;
     private BufferedWriter out;
@@ -57,13 +56,12 @@ public class RobotLogger {
     private int rows = 0;
 
     public RobotLogger(RobotHardware hw, HardwareMap map, ImuController imu,
-                       ExtendController extend, ShooterController shooter, Distance distance) {
+                       ExtendController extend, ShooterController shooter) {
         this.hw = hw;
         this.hardwareMap = map;
         this.imu = imu;
         this.extend = extend;
         this.shooter = shooter;
-        this.distance = distance;
     }
 
     public void setDriveAssist(DriveAssist a) { this.assist = a; }
@@ -167,7 +165,6 @@ public class RobotLogger {
                 + "sht_err,sht_int,sht_ff,sht_dt,sht_rmping,"
                 + "sht_cur_l,sht_cur_r,int_cur,int_vel,int_stall,hub_cur,"
                 + "feed_cur,climb_cur,cur_sum,cur_other,"
-                + "dst_filt,dst_sensor,dst_front,dst_angle_err,dst_out,dst_valid,dst_fail,"
 
                 + "ph_bulk,ph_imu,ph_ctrl,ph_mode,ph_telem,ph_wait,ph_log,period_ms,period_max,ovr_pct,heap_kb,"
                 + "pm_logic,pm_imu,pm_calc,pm_write,volt,"
@@ -279,17 +276,6 @@ public class RobotLogger {
         ap2(sb, sum);           sb.append(',');
         ap2(sb, cHub - sum);    sb.append(',');
 
-        if (distance != null) {
-            ap1(sb, distance.getDistance());      sb.append(',');
-            ap1(sb, distance.getSensorRaw());     sb.append(',');
-            ap1(sb, distance.getFrontDistance()); sb.append(',');
-            ap2(sb, distance.getAngleError());    sb.append(',');
-            ap3(sb, distance.getOutput());        sb.append(',');
-            sb.append(distance.isValid() ? 1 : 0).append(',')
-              .append(distance.getFailCount()).append(',');
-        } else {
-            sb.append("0,0,0,0,0,0,0,");
-        }
 
         ap2(sb, phBulk);  sb.append(',');
         ap2(sb, phImu);   sb.append(',');

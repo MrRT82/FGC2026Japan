@@ -19,7 +19,7 @@ public final class PowerTraceTest {
             });
         RobotHardware hw = new RobotHardware(); hw.extendMotor = motor;
         ExtendController ext = new ExtendController(hw);
-        RobotLogger logger = new RobotLogger(hw, null, null, ext, null, null);
+        RobotLogger logger = new RobotLogger(hw, null, null, ext, null);
         Path dir = Files.createTempDirectory("r4-power-test");
         PowerTrace trace = new PowerTrace(dir.toFile());
         Field field = RobotLogger.class.getDeclaredField("powerTrace"); field.setAccessible(true); field.set(logger, trace);

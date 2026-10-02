@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-10-02 JST
+// 変更内容: 撤去した測距センサーへの依存と測距処理を削除。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -66,15 +66,6 @@ public final class SensorReads {
             failed = false;
             return value;
         } finally { timing.recordSince(SensorTiming.TOUCH, started, failed); }
-    }
-    public double distance(DistanceSensor sensor) {
-        long started = System.nanoTime();
-        boolean failed = true;
-        try {
-            double value = sensor.getDistance(DistanceUnit.CM);
-            failed = false;
-            return value;
-        } finally { timing.recordSince(SensorTiming.DISTANCE, started, failed); }
     }
     public YawPitchRollAngles heading(IMU imu) {
         long started = System.nanoTime();

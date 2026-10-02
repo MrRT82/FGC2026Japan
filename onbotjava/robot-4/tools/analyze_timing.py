@@ -43,7 +43,7 @@ def main():
         if count:
             print(f"{name:24} {count:9d} {total_us/count/1000:10.3f} "
                   f"{max_us/1000:10.3f} {total_us/1000:12.3f} {errors:8d}")
-    print("Times overlap: do not add distance, loop_work, log_build and other categories.")
+    print("Times overlap: do not add loop_work, log_build and other overlapping categories.")
     print("Mode-labelled work times include logging; sensor windows can straddle mode changes.")
 
 

@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-10-02 JST
+// 変更内容: 撤去した測距センサーへの依存と測距処理を削除。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -13,7 +13,6 @@ import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.TouchSensor;
-import com.qualcomm.robotcore.hardware.DistanceSensor;
 
 // 設定名と実機の対応を集約する。方向や取付姿勢の変更は全OpModeに影響する。
 public class RobotHardware {
@@ -42,7 +41,6 @@ public class RobotHardware {
     public TouchSensor rightTouch;
     public TouchSensor leftTouch;
 
-    public DistanceSensor distanceSensor;
 
     public void init(HardwareMap hardwareMap) {
         leftMotor = hardwareMap.get(DcMotorEx.class, "leftmotor");
@@ -67,7 +65,6 @@ public class RobotHardware {
         leftDown_Servo = hardwareMap.get(Servo.class,"leftOutside");
         rightLock_Servo = hardwareMap.get(Servo.class,"rightLock");
         leftLock_Servo = hardwareMap.get(Servo.class,"leftLock");
-        distanceSensor = hardwareMap.get(DistanceSensor.class, "distanceSensor");
 
         // 走行はBRAKE、回収・展開はFLOAT。BRAKEは位置や方位を保証する保持制御ではない。
         leftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
