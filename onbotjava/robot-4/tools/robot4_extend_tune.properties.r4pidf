@@ -1,0 +1,31 @@
+# Robot 4 only. Extend_TuneAuto_R4 settings from tools/r4_pidf_tune.py (2026-09-29 data).
+# kp 0.14 / kd 0.001 chattered on the robot (run 11, backlash); halved to kp 0.07, kd 0.
+# Copy to /sdcard/FIRST/robot4_extend_tune.properties. Confirmed on the robot by run 12 (2026-09-29).
+# The tuning OpModes enforce NO angle, current, voltage, speed or power limits in this build.
+# Stops are only: release RB, press B, logger failure, invalid angle, loop delay.
+# Confirm INIT telemetry first, then change motion_enabled to true.
+motion_enabled=false
+motor_model=REV_Core_Hex
+gear_ratio=user_reported_10.4_reduction
+# Record where the balls on the moving extension are in the test notes.
+balls=-1
+# Gravity identified from robot 4 logs. Must be used together with the gains below.
+gravity_cos=0.202
+gravity_constant=0.045
+gravity_phase_deg=17
+friction=0.126
+kp=0.07
+ki=0.005
+kd=0
+# Velocity feedforward (duty per deg/s of target speed). Model kV = 0.0057.
+auto_kv_up=0.0028
+auto_kv_down=0
+auto_slew_dps=27
+auto_stations=25,71
+auto_step_deg=2
+auto_hold_s=1.5
+auto_step_s=1.5
+auto_arrive_s=4
+# Recorded in the log only; not enforced.
+min_angle_deg=21
+max_angle_deg=75

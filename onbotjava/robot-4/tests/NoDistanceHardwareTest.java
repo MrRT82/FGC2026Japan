@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
 
 // Runs against SDK stubs with only the hardware that remains on Robot 4.
 public final class NoDistanceHardwareTest {
@@ -26,6 +28,7 @@ public final class NoDistanceHardwareTest {
                 "leftInside", "leftOutside", "rightLock", "leftLock", "potentiometer",
                 "imu", "rightTouch", "leftTouch"));
         final Set<String> requested = new HashSet<>();
+        final Map<String, Double> outputs = new HashMap<>();
         RemainingHardware() { super(null, null); }
         @Override public <T> T get(Class<? extends T> type, String name) {
             if (!names.contains(name)) throw new IllegalArgumentException("Missing device: " + name);
@@ -33,6 +36,8 @@ public final class NoDistanceHardwareTest {
             if (type == AnalogInput.class) return type.cast(new AnalogInput(null, 0));
             return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type},
                     (proxy, method, args) -> {
+                        if (method.getName().equals("setPosition") || method.getName().equals("setPower"))
+                            outputs.put(name, (Double) args[0]);
                         Class<?> result = method.getReturnType();
                         if (result == boolean.class) return true;
                         if (result == double.class) return 0.0;
@@ -55,6 +60,24 @@ public final class NoDistanceHardwareTest {
         RemainingHardware timingMap = new RemainingHardware();
         new org.firstinspires.ftc.teamcode.timing.RobotHardware().init(timingMap);
         check(timingMap.requested.equals(timingMap.names), "Timing hardware must initialize without the removed sensor");
+        check(map.outputs.get("rightLock") == 0.5 && map.outputs.get("leftLock") == 0.5,
+                "Continuous rotation locks must initialize stopped");
+        ClimbSequence sequence = new ClimbSequence();
+        check(sequence.update(1, 0, false, false, 0) == ClimbSequence.WAIT, "gp1 cannot start climb");
+        check(sequence.update(0, 1, false, false, 400) == ClimbSequence.UP, "gp2 starts lock-only rise");
+        check(sequence.update(0, 0, false, false, 800) == ClimbSequence.UP, "Release must hold stage");
+        check(sequence.update(1, 0, false, false, 1200) == ClimbSequence.DOWN, "Next press starts descent");
+        ClimbController climb = new ClimbController(hw);
+        climb.climbUp();
+        check(map.outputs.get("rightLock") == 1.0 && map.outputs.get("rightInside") == 0.5,
+                "Rise rotates locks and stops climb servos");
+        climb.climbDownThenRoller(16, 16, 1.0); // fake touch sensors are already pressed
+        check(map.outputs.get("climb") == 1.0 && map.outputs.get("rightLock") == 0.5,
+                "Bottom limit stops servos and starts Blue front roller");
+        climb.climbStop();
+        check(map.outputs.get("climb") == 0.0, "Climb stop also stops roller");
+        new ClimbController(hw).climbDownThenRoller(-16, -16, -1.0);
+        check(map.outputs.get("climb") == -1.0, "Red front roller direction is reversed");
         DriveController drive = new DriveController(hw);
         for (double forward : new double[]{-1, -0.4, 0, 0.4, 1}) {
             for (double turn : new double[]{-1, -0.2, 0, 0.2, 1}) {

@@ -12,9 +12,8 @@ import java.util.*;
 /** Robot 4 only: current logging and small supervised extension trials. */
 @TeleOp(name="Extend_Tune_R4", group="1_DIAG")
 public final class Extend_Tune_R4 extends LinearOpMode {
-    public static final String BUILD = "20260929_robot4_extend_tune_v6";
+    public static final String BUILD = "20260929_robot4_extend_tune_v6_nolimits";
     private static final long PERIOD_NS = 20_000_000L;
-    private static final double MAX_AGE_MS = 250;
     private static final class Reading {
         double value = Double.NaN, durationMs;
         long stampNs, seq;
@@ -40,16 +39,6 @@ public final class Extend_Tune_R4 extends LinearOpMode {
         } catch (RuntimeException ignored) { /* Failure is NaN + ok=0, never zero current. */ }
         r.stampNs = System.nanoTime(); r.durationMs = (r.stampNs - start) / 1e6; r.seq++;
     }
-    private static String electricalFault(Reading[] readings, long now, ExtendIdentificationConfig c) {
-        for (int n = 0; n < readings.length; n++) {
-            Reading r = readings[n];
-            if (!r.ok || r.age(now) < 0 || r.age(now) > MAX_AGE_MS || r.durationMs > 100) return "ELECTRICAL_STALE_OR_INVALID";
-            if (n == 0 && r.value > c.motorLimitA) return "MOTOR_CURRENT";
-            if (n > 0 && n % 2 == 1 && r.value < c.minVoltage) return "LOW_VOLTAGE_HUB_" + ((n - 1) / 2);
-            if (n > 0 && n % 2 == 0 && r.value > c.hubLimitA) return "HUB_CURRENT_" + ((n - 1) / 2);
-        }
-        return "";
-    }
     private static void metadata(File file, ExtendIdentificationConfig c, List<LynxModule> hubs, DcMotorEx motor) throws IOException {
         try (PrintWriter w = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"))) {
             w.println("build=" + BUILD); w.println("robot=4"); w.println("expected_adb_serial=dddad6c23c4eeb3b");
@@ -74,6 +63,7 @@ public final class Extend_Tune_R4 extends LinearOpMode {
             w.println("ramp_stationary_window_ms=500; max_span_deg=0.15; method=angle_span");
             w.println("ramp_onset_displacement_deg=0.3; confirm_ms=100; post_confirm_ms=150");
             w.println("angle_conversion=voltage/maxVoltage*135; offset=0");
+            w.println("limits=none; limit settings above are recorded only");
             w.println("zero_power=BRAKE; not a mechanical holding brake");
             for (int n = 0; n < hubs.size(); n++) w.println("hub_" + n + "=" + hubs.get(n).getConnectionInfo());
             if (w.checkError()) throw new IOException("Metadata write failed");
@@ -132,8 +122,7 @@ public final class Extend_Tune_R4 extends LinearOpMode {
                 acquire(readings[readIndex], motor, hubs, readIndex);
                 readIndex = (readIndex + 1) % readings.length;
                 long now = System.nanoTime();
-                String powerFault = electricalFault(readings, now, config);
-                if (angleReadMs > 100 || now - angleEndNs > 100_000_000L) powerFault = "ANGLE_READ_DELAY";
+                String powerFault = angleReadMs > 100 || now - angleEndNs > 100_000_000L ? "ANGLE_READ_DELAY" : "";
                 boolean active = isStarted() && !isStopRequested();
                 boolean deadman = active && gamepad1.right_bumper && !gamepad1.b;
                 boolean start = gamepad1.a && !wasA;
@@ -163,7 +152,7 @@ public final class Extend_Tune_R4 extends LinearOpMode {
                 if (!writer.offer(row.toString())) { core.trip("LOGGER_FAILED"); motor.setPower(0); }
                 if (now - lastTelemetry >= 200_000_000L) {
                     telemetry.addData("Build", BUILD);
-                    telemetry.addData("Mode", config.motionEnabled ? config.trialMode + ": RB held + A; B: latch stop" : "MONITOR ONLY - motion limits not enabled");
+                    telemetry.addData("Mode", config.motionEnabled ? config.trialMode + ": RB held + A; B: latch stop" : "MONITOR ONLY - motion_enabled=false");
                     telemetry.addData("State", core.state + " " + core.fault);
                     telemetry.addData("Trial / phase", core.trialId + " " + core.phase + " " + core.stopReason);
                     telemetry.addData("Dataset", config.datasetRole + " balls=" + config.balls);

@@ -57,9 +57,10 @@ class TuneAnalysisTest(unittest.TestCase):
         source = ROOT / 'src/org/firstinspires/ftc/teamcode'
         normal = (source / 'ExtendController.java').read_text(encoding='utf-8')
         timing = (source / 'timing/ExtendController.java').read_text(encoding='utf-8')
+        # Mechanical limits remain shared. Production PIDF is independently tuned;
+        # its gains/FF are covered by ExtendProductionControlTest, not copied to timing.
         keys = ['pote_offset', 'pote_Middle', 'pote_Up', 'pote_Down', 'TARGET_MIN_DEG',
-                'TARGET_MAX_DEG', 'REVERSE_TIME_MS', 'POTE_ANGLE_MIN', 'POTE_ANGLE_MAX',
-                'kp', 'ki', 'kd', 'KG_AMP', 'KG_CONST', 'KS_FF', 'gravity_offset_angle']
+                'TARGET_MAX_DEG', 'REVERSE_TIME_MS', 'POTE_ANGLE_MIN', 'POTE_ANGLE_MAX']
         for key in keys:
             pattern = rf'\b{key}\s*=\s*([^;]+);'
             self.assertEqual(re.search(pattern, normal)[1], re.search(pattern, timing)[1], key)

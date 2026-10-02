@@ -33,7 +33,7 @@ public final class ExtendSysIdCore {
 
     private final double[] windowT = new double[WINDOW], windowA = new double[WINDOW];
     private int windowCount, windowHead;
-    private double previousAngle, previousMs, phaseStartMs, activeMs, lastActiveMs;
+    private double previousAngle, previousMs, phaseStartMs;
     private boolean initialized, walkUp = true, eventOpen, taperSlow;
     /** Absolute breakaway effort per direction: [0] negative, [1] positive. */
     private final double[] lastBreakawayV = {Double.NaN, Double.NaN};
@@ -67,7 +67,7 @@ public final class ExtendSysIdCore {
     public void update(double observed, double tMs, boolean deadman, boolean startEdge,
                        double hubVolts, double hubAgeMs, String electricalFault, boolean writerOk) {
         dt = initialized ? (tMs - previousMs) / 1000 : .020;
-        if (!ExtendTuneConfig.finite(observed) || observed < -5 || observed > 90) {
+        if (!ExtendTuneConfig.finite(observed)) {
             trip("ANGLE_INVALID"); return;
         }
         angle = observed;
@@ -87,27 +87,24 @@ public final class ExtendSysIdCore {
         }
         if (!fault.isEmpty() || state.equals("COMPLETE")) { zero(); return; }
         if (!config.motionEnabled || !config.valid() || !deadman) { release(); return; }
-        if (angle <= config.minAngle || angle >= config.maxAngle) { trip("ANGLE_LIMIT"); return; }
+        // duty = effort_V / motor-Hub V needs a fresh reading; a measurement check, not a voltage limit.
         boolean voltsOk = ExtendTuneConfig.finite(hubVolts) && hubVolts > 0
             && hubAgeMs >= 0 && hubAgeMs <= MOTOR_HUB_MAX_AGE_MS;
         if (startEdge && !state.equals("ACTIVE")) {
             if (!voltsOk) { trip("MOTOR_HUB_VOLTAGE_STALE"); return; }
-            state = "ACTIVE"; lastActiveMs = tMs;
+            state = "ACTIVE";
             nextEvent(tMs);
         }
         if (!state.equals("ACTIVE")) { zero(); return; }
-        activeMs += tMs - lastActiveMs; lastActiveMs = tMs;
-        if (activeMs > config.maxRuntimeS * 1000) { finish("RUNTIME"); return; }
         if (!voltsOk) { trip("MOTOR_HUB_VOLTAGE_STALE"); return; }
-        if (Math.abs(velocity) > config.overspeedDps) { trip("OVERSPEED"); return; }
         step(tMs);
         if (!state.equals("ACTIVE")) return;
         requested = commandV / hubVolts;
-        saturated = Math.abs(requested) > config.maxDuty;
-        // A clipped ramp is no longer the commanded slow ramp: stop instead of logging it.
+        saturated = Math.abs(requested) > 1;
+        // A ramp clipped at full duty is no longer the commanded slow ramp: stop instead of logging it.
         if (saturated && phase.equals("RAMP")) { trip("NO_BREAKAWAY"); return; }
         if (!ExtendTuneConfig.finite(requested)) { trip("OUTPUT_INVALID"); return; }
-        sent = Math.max(-config.maxDuty, Math.min(config.maxDuty, requested));
+        sent = Math.max(-1, Math.min(1, requested));
     }
 
     private void nextEvent(double tMs) {
@@ -238,8 +235,8 @@ public final class ExtendSysIdCore {
             }
             case "POST_HOLD":
                 commandV = restV;
-                // Forward coasting is larger near vertical (little gravity to decelerate); the
-                // absolute angle limit still applies. Backward drift means the rest effort fails.
+                // Forward coasting is larger near vertical (little gravity to decelerate).
+                // Backward drift means the rest effort fails.
                 if (displacement < -2 * config.motionDetectDeg
                         || displacement > OVERSHOOT * distanceGoal + config.guardDeg) { trip("DRIFT_AT_REST"); return; }
                 if (Double.isNaN(firstMotionMs) && displacement >= config.motionDetectDeg) firstMotionMs = tMs;

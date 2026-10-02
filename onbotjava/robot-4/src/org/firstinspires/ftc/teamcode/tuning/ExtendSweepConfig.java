@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.tuning;
 import java.io.*;
 import java.util.Properties;
 
-/** Robot 4 gain sweep at match-level limits. No motion until measured limits are supplied. */
+/** Robot 4 gain sweep. No motion until motion_enabled=true. */
 public final class ExtendSweepConfig {
     public static final String PATH = "/sdcard/FIRST/robot4_extend_sweep.properties";
     public boolean motionEnabled;
@@ -46,7 +46,7 @@ public final class ExtendSweepConfig {
         c.balls = Integer.parseInt(p.getProperty("balls", "-1").trim());
         c.gearRatio = p.getProperty("gear_ratio", "unknown").trim();
         c.motorModel = p.getProperty("motor_model", "unknown").trim();
-        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid sweep limits: " + file);
+        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid sweep settings: " + file);
         return c;
     }
     private static double number(Properties p, String key, double fallback) {
@@ -68,21 +68,17 @@ public final class ExtendSweepConfig {
     public int candidates() { return kps.length * kds.length; }
     public double kp(int candidate) { return kps[candidate / kds.length]; }
     public double kd(int candidate) { return kds[candidate % kds.length]; }
-    private boolean inside(double deg) { return ExtendTuneConfig.finite(deg) && deg >= minAngle + 2 && deg <= maxAngle - 3; }
+    /** Angle, current, voltage, power and speed settings are recorded only; no limit is enforced. */
     public boolean valid() {
-        boolean ok = ExtendTuneConfig.finite(minAngle) && ExtendTuneConfig.finite(maxAngle)
-            && minAngle >= 0 && maxAngle <= 88 && maxAngle - minAngle >= 10
-            && positive(motorLimitA) && motorLimitA <= 4.4 && positive(hubLimitA) && positive(minVoltage)
-            && positive(maxPower) && maxPower <= 1 && positive(slewDps) && slewDps <= 150
-            && positive(overspeedDps) && overspeedDps <= 200
+        boolean ok = positive(slewDps)
             && ExtendTuneConfig.finite(gravityCos) && ExtendTuneConfig.finite(gravityConstant)
             && ExtendTuneConfig.finite(gravityPhaseDeg) && ExtendTuneConfig.finite(friction) && friction >= 0
             && ExtendTuneConfig.finite(ki) && ki >= 0 && kps.length > 0 && kds.length > 0
-            && candidates() <= 24 && goals.length > 0 && inside(startDeg)
+            && goals.length > 0 && ExtendTuneConfig.finite(startDeg)
             && positive(holdS) && positive(arriveS);
-        for (double k : kps) ok &= ExtendTuneConfig.finite(k) && k > 0 && k <= .5;
-        for (double k : kds) ok &= ExtendTuneConfig.finite(k) && k >= 0 && k <= .05;
-        for (double g : goals) ok &= inside(g) && Math.abs(g - startDeg) <= 60;
+        for (double k : kps) ok &= ExtendTuneConfig.finite(k) && k > 0;
+        for (double k : kds) ok &= ExtendTuneConfig.finite(k) && k >= 0;
+        for (double g : goals) ok &= ExtendTuneConfig.finite(g);
         return ok;
     }
     private static boolean positive(double v) { return ExtendTuneConfig.finite(v) && v > 0; }

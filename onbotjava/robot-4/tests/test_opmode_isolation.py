@@ -11,7 +11,7 @@ SOURCE = ROOT / 'src/org/firstinspires/ftc/teamcode'
 class OpModeIsolationTest(unittest.TestCase):
     def test_normal_dependencies_are_isolated(self):
         files = list(SOURCE.glob('*.java'))
-        self.assertEqual(len(files), 21)
+        self.assertEqual(len(files), 22)
         for path in files:
             with self.subTest(path=path.name):
                 text = path.read_text(encoding='utf-8')

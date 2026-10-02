@@ -23,22 +23,16 @@ public final class ExtendTuneCoreTest {
         check(c.state.equals("ACTIVE") && c.target == 40, "arm at measured angle");
         c.update(40, t += 20_000_000L, true, false, 1, "", true);
         check(Math.abs(c.target - 40.2) < 1e-8 && c.goal == 45, "target slew");
-        check(Math.abs(c.sent) <= .2, "output bound");
+        check(Math.abs(c.sent) <= 1, "output bound is full duty only");
         c.update(40, t += 20_000_000L, false, false, 0, "", true);
         check(c.sent == 0, "deadman release");
         c.update(40, t += 20_000_000L, true, false, 0, "", true);
         check(c.sent == 0, "repress requires new A edge");
         c.update(40, t += 20_000_000L, true, true, 0, "", true);
-        c.update(40, t += 20_000_000L, true, false, 0, "MOTOR_CURRENT", true);
-        check(c.sent == 0 && c.fault.equals("MOTOR_CURRENT"), "overcurrent latch");
+        c.update(40, t += 20_000_000L, true, false, 0, "ANGLE_READ_DELAY", true);
+        check(c.sent == 0 && c.fault.equals("ANGLE_READ_DELAY"), "reported fault latches");
         c.update(40, t += 20_000_000L, true, true, 0, "", true);
         check(c.sent == 0, "fault does not self-clear");
-        for (String fault : new String[]{"LOW_VOLTAGE_HUB_0", "ELECTRICAL_STALE_OR_INVALID"}) {
-            c = new ExtendTuneCore(config());
-            c.update(40, t, true, true, 0, "", true);
-            c.update(40, t + 20_000_000L, true, false, 0, fault, true);
-            check(c.sent == 0 && c.fault.equals(fault), fault);
-        }
         c = new ExtendTuneCore(config());
         c.update(40, t, true, true, 0, "", true);
         c.update(40, t + 101_000_000L, true, false, 0, "", true);
@@ -47,14 +41,14 @@ public final class ExtendTuneCoreTest {
         check(c.sent == 0 && c.fault.equals("ANGLE_INVALID"), "NaN angle");
         c = new ExtendTuneCore(config()); c.update(40, t, true, true, 0, "", false);
         check(c.sent == 0 && c.fault.equals("LOGGER_FAILED"), "logger failure");
-        c = new ExtendTuneCore(config()); c.update(70, t, true, true, 0, "", true);
-        check(c.sent == 0 && c.fault.equals("ANGLE_LIMIT"), "upper limit");
+        c = new ExtendTuneCore(config()); c.update(85, t, true, true, 0, "", true);
+        check(c.state.equals("ACTIVE") && c.fault.isEmpty(), "no angle limit");
         c = new ExtendTuneCore(config()); c.update(40, t, true, true, 0, "", true);
         for (int n = 1; n <= 400; n++) c.update(40, t + n * 20_000_000L, true, false, 0, "", true);
-        check(c.sent == 0 && c.state.equals("COMPLETE"), "trial timeout");
+        check(c.state.equals("ACTIVE") && c.fault.isEmpty(), "no trial time limit");
         c = new ExtendTuneCore(config()); c.update(40, t, true, true, 0, "", true);
         for (int n = 1; n < 100; n++) c.update(40, t + n * 20_000_000L, true, false, n == 1 ? 1 : 0, "", true);
-        check(c.sent == 0 && c.fault.equals("NO_MOTION"), "stall does not reverse");
+        check(c.state.equals("ACTIVE") && c.fault.isEmpty() && c.sent > 0, "no stall limit; stall does not reverse");
         Path temp = Files.createTempDirectory("r4-tune-test");
         File log = temp.resolve("log.csv").toFile();
         TuneCsvWriter writer = new TuneCsvWriter(log, "a,b");
@@ -63,10 +57,13 @@ public final class ExtendTuneCoreTest {
         check(!writer.offer("3,4"), "closed rejects");
         check(!ExtendIdentificationConfig.load(temp.resolve("missing.properties").toFile()).motionEnabled, "missing config");
         File bad = temp.resolve("bad.properties").toFile();
-        Files.write(bad.toPath(), "motion_enabled=true\n".getBytes("UTF-8"));
+        File open = temp.resolve("open.properties").toFile();
+        Files.write(open.toPath(), "motion_enabled=true\n".getBytes("UTF-8"));
+        check(ExtendIdentificationConfig.load(open).motionEnabled, "no limit settings required");
+        Files.write(bad.toPath(), "motion_enabled=true\nkp=-1\n".getBytes("UTF-8"));
         boolean rejected = false;
         try { ExtendIdentificationConfig.load(bad); } catch (IOException expected) { rejected = true; }
-        check(rejected, "missing motion limits rejected");
+        check(rejected, "invalid gain rejected");
         System.out.println("ExtendTuneCoreTest passed: " + checks);
     }
 }

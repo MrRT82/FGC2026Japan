@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.tuning;
 import java.io.*;
 import java.util.Properties;
 
-/** Robot 4 extension identification. No motion is permitted until measured limits are supplied. */
+/** Robot 4 extension identification. No motion until motion_enabled=true. */
 public final class ExtendSysIdConfig {
     public static final String PATH = "/sdcard/FIRST/robot4_extend_sysid.properties";
     public boolean motionEnabled;
@@ -68,7 +68,7 @@ public final class ExtendSysIdConfig {
         c.balls = Integer.parseInt(p.getProperty("balls", "-1").trim());
         c.gearRatio = p.getProperty("gear_ratio", "unknown").trim();
         c.motorModel = p.getProperty("motor_model", "unknown").trim();
-        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid identification limits: " + file);
+        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid identification settings: " + file);
         return c;
     }
     private static double number(Properties p, String key, double fallback) {
@@ -87,27 +87,27 @@ public final class ExtendSysIdConfig {
         for (int n = 0; n < slideScales.length; n++) b.append(n == 0 ? "" : ",").append(slideScales[n]);
         return b.toString();
     }
+    /**
+     * min/max angle only plan where the up/down events walk; they are not a stop. Current, voltage,
+     * duty, speed and runtime settings are recorded only; no limit is enforced.
+     */
     public boolean valid() {
         boolean scalesOk = slideScales.length > 0;
-        for (double s : slideScales) scalesOk &= ExtendTuneConfig.finite(s) && s >= .5 && s <= 2;
+        for (double s : slideScales) scalesOk &= ExtendTuneConfig.finite(s) && s > 0;
         return ExtendTuneConfig.finite(minAngle) && ExtendTuneConfig.finite(maxAngle)
-            && minAngle >= 0 && maxAngle <= 88 && positive(guardDeg) && positive(longStepDeg)
+            && positive(guardDeg) && positive(longStepDeg)
             && positive(shortStepDeg) && maxAngle - minAngle >= 2 * guardDeg + 1.5 * (longStepDeg + shortStepDeg)
-            && positive(motorLimitA) && positive(hubLimitA) && positive(minVoltage)
-            && positive(maxDuty) && maxDuty <= .6
-            && positive(rampVPerS) && rampVPerS <= 1.8
+            && positive(rampVPerS)
             && ExtendTuneConfig.finite(rampBackoffV) && rampBackoffV >= 0
-            && ExtendTuneConfig.finite(initialRestV) && Math.abs(initialRestV) <= 3
+            && ExtendTuneConfig.finite(initialRestV)
             && positive(taperVPerS) && positive(taperSlowVPerS) && taperSlowVPerS <= taperVPerS
             && positive(taperSlowBelowDps) && taperSlowFraction > 0 && taperSlowFraction < 1
             && ExtendTuneConfig.finite(taperSlowMarginV) && taperSlowMarginV >= 0 && scalesOk
             && preHoldS >= .4 && postHoldS >= .4
             && positive(stillBandDeg) && motionDetectDeg > stillBandDeg
-            && positive(slideMaxDps) && slideMaxDps < overspeedDps && overspeedDps <= 90
-            && positive(slideMaxS) && positive(rampMaxS)
-            && pulseEvery >= 0 && ExtendTuneConfig.finite(pulseScale) && pulseScale >= 1.05 && pulseScale <= 2
-            && positive(pulseS) && pulseS <= 1
-            && maxEvents >= 4 && maxEvents <= 200 && positive(maxRuntimeS) && maxRuntimeS <= 600
+            && positive(slideMaxDps) && positive(slideMaxS) && positive(rampMaxS)
+            && pulseEvery >= 0 && ExtendTuneConfig.finite(pulseScale) && pulseScale > 1
+            && positive(pulseS) && maxEvents >= 1
             && angleSamples >= 1 && angleSamples <= 4 && motorHubIndex >= -1;
     }
     private static boolean positive(double v) { return ExtendTuneConfig.finite(v) && v > 0; }

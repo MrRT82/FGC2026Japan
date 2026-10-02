@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.tuning;
 import java.io.*;
 import java.util.Properties;
 
-/** Robot 4 only. No motion is permitted until measured limits are supplied. */
+/** Robot 4 only. No motion until motion_enabled=true. */
 public final class ExtendIdentificationConfig {
     public static final String PATH = "/sdcard/FIRST/robot4_extend_tune.properties";
     public boolean motionEnabled;
@@ -51,27 +51,23 @@ public final class ExtendIdentificationConfig {
         c.rampRateVps = number(p, "ramp_rate_V_per_s", c.rampRateVps);
         c.rampMaxDeltaV = number(p, "ramp_max_delta_V", c.rampMaxDeltaV);
         c.rampMaxExcursionDeg = number(p, "ramp_max_excursion_deg", c.rampMaxExcursionDeg);
-        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid motion limits: " + file);
+        if (c.motionEnabled && !c.valid()) throw new IOException("Invalid trial settings: " + file);
         return c;
     }
     private static double number(Properties p, String key, double fallback) {
         return Double.parseDouble(p.getProperty(key, Double.toString(fallback)));
     }
     static boolean finite(double v) { return !Double.isNaN(v) && !Double.isInfinite(v); }
+    /** Angle, current, voltage, power and ramp-size settings are recorded only; no limit is enforced. */
     public boolean valid() {
-        return finite(minAngle) && finite(maxAngle) && minAngle >= 0 && maxAngle <= 88
-            && maxAngle - minAngle >= 2 && positive(motorLimitA) && positive(hubLimitA)
-            && positive(minVoltage) && positive(maxPower) && maxPower <= .35
-            && finite(kp) && kp >= 0 && finite(ki) && ki >= 0 && finite(kd) && kd >= 0
+        return finite(kp) && kp >= 0 && finite(ki) && ki >= 0 && finite(kd) && kd >= 0
             && finite(gravityCos) && finite(gravityConstant) && finite(gravityPhaseDeg)
             && finite(friction) && friction >= 0
             && (trialMode.equals("PID") || trialMode.equals("STEP_POS") || trialMode.equals("STEP_NEG")
                 || trialMode.equals("BREAKAWAY_POS") || trialMode.equals("BREAKAWAY_NEG")
                 || trialMode.equals("BREAKAWAY_MOTOR_POS") || trialMode.equals("BREAKAWAY_MOTOR_NEG"))
             && (datasetRole.equals("unspecified") || datasetRole.equals("train") || datasetRole.equals("validation"))
-            && positive(stepDeg) && stepDeg <= 5 && positive(slewDps) && slewDps <= 10
-            && rampRateVps >= .1 && rampRateVps <= 1 && positive(rampMaxDeltaV) && rampMaxDeltaV <= 4
-            && rampMaxExcursionDeg >= .5 && rampMaxExcursionDeg <= 3
+            && positive(stepDeg) && positive(slewDps) && positive(rampRateVps)
             && (motorToAngleSign == -1 || motorToAngleSign == 1)
             && (trialMode.equals("PID") || (balls >= 0 && !datasetRole.equals("unspecified")))
             && (!rampMode() || motorHubIndex >= 0);

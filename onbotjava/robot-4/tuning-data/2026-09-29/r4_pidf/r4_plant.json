@@ -1,0 +1,66 @@
+{
+  "robot": 4,
+  "gear_ratio": "user_reported_10.4_reduction (robot 4; not the FGC_PIDF_Tuner mechanism)",
+  "angle": "sensor deg = V/Vmax*135",
+  "phase_deg": 17.0,
+  "gravity_cos": 0.2022045094098635,
+  "gravity_constant": 0.04534291069571971,
+  "fc_pos": 0.12577512062365173,
+  "fc_neg": 0.08043220992793286,
+  "fs_pos": 0.12577512062365173,
+  "fs_neg": 0.20560125291129117,
+  "kv": 0.005654761162320271,
+  "ka": 0.00034149494785113197,
+  "fit": {
+    "samples": 486,
+    "up_samples": 396,
+    "down_samples": 90,
+    "rms": 0.08935760855273964,
+    "r2": 0.756861925625173
+  },
+  "raw_dynamic_fit": {
+    "gravity_cos": 0.2022045094098635,
+    "gravity_constant": 0.04534291069571971,
+    "fc_pos": 0.12577512062365173,
+    "fc_neg": 0.08043220992793286,
+    "kv": 0.005654761162320271,
+    "ka": 0.00034149494785113197,
+    "samples": 486,
+    "rms": 0.08935760855273964,
+    "r2": 0.756861925625173,
+    "up_samples": 396,
+    "down_samples": 90
+  },
+  "breakaway_events": [
+    {
+      "angle": 40.86818181818182,
+      "duty": 0.24980660541553698,
+      "hub_V": 12.476000000000006,
+      "gravity": 0.1528892070588503,
+      "net": 0.09691739835668667,
+      "direction": 1,
+      "hold_duty": 0.11190668975346592,
+      "file": "01_breakaway_v4_motor_pos_wrong_direction.csv"
+    },
+    {
+      "angle": 64.71818181818182,
+      "duty": -0.1311323628723935,
+      "hub_V": 12.419000000000006,
+      "gravity": 0.07446889003889766,
+      "net": -0.20560125291129117,
+      "direction": -1,
+      "hold_duty": 0.06757081685222188,
+      "file": "06_breakaway_v6_motor_neg_recorded.csv"
+    }
+  ],
+  "sources": [
+    "07_auto_v2_power035_up_complete.csv",
+    "08_auto_v3_power050_down_overspeed.csv",
+    "09_auto_v3_power050_up_complete.csv",
+    "10_auto_v4_kv010_up_overspeed.csv",
+    "01_breakaway_v4_motor_pos_wrong_direction.csv",
+    "06_breakaway_v6_motor_neg_recorded.csv"
+  ],
+  "tau_s": 0.06039069344371906,
+  "kv_ff_theory": 0.005654761162320271
+}
