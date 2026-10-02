@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-02 JST
-// 変更内容: 共通展開PIDFを使用し、終了/例外時に展開をスルーなしで停止。
+// 最終変更: 2026-10-02 17:18 JST
+// 変更内容: RT/A射撃時の目標方位をそれぞれ180deg反転。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -66,8 +66,8 @@ public class MainClass_Blue extends LinearOpMode {
     double standardSpeed = -100;
     // 各目標方位は開始時のIMUゼロ基準、単位はdeg。Blue/Redは符号が反転する。
     double climbTarget = 16;
-    double shootTarget = -90;
-    double shootTargetB = -30;
+    double shootTarget = 90;
+    double shootTargetB = 150;
     double dischargeTarget = 120;
 
     // 登坂の表裏切替には70/110degのヒステリシスを設ける。
