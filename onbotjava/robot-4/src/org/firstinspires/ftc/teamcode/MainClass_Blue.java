@@ -272,6 +272,7 @@ public class MainClass_Blue extends LinearOpMode {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTargetB);
                     shooterController.setSpeed(shootSpeed);
+                    commandExtend(extendController.pote_Middle);
                 }
 
                 // Xで排出モードを切替。射撃・登坂中は受け付けない。

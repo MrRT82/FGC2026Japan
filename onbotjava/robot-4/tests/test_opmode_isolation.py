@@ -34,6 +34,16 @@ class OpModeIsolationTest(unittest.TestCase):
             names.extend(re.findall(r'@TeleOp\(name="([^"]+)"', text))
         self.assertCountEqual(names, ['MainClass_Blue', 'MainClass_Red', 'MainClass_Blue_Timing'])
 
+    def test_both_shoot_routes_use_one_shared_extension_angle(self):
+        controller = (SOURCE / 'ExtendController.java').read_text(encoding='utf-8')
+        self.assertEqual(len(re.findall(
+            r'\bdouble\s+pote_Middle\s*=\s*[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s*;', controller)), 1)
+        for name in ('MainClass_Blue.java', 'MainClass_Red.java'):
+            text = (SOURCE / name).read_text(encoding='utf-8')
+            with self.subTest(path=name):
+                self.assertEqual(text.count('commandExtend(extendController.pote_Middle);'), 2,
+                                 'normal and alternate shooting must share pote_Middle')
+
     def test_timing_dependencies_are_isolated(self):
         files = list((SOURCE / 'timing').glob('*.java'))
         self.assertEqual(len(files), 21)

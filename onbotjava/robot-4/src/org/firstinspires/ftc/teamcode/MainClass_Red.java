@@ -265,10 +265,12 @@ public class MainClass_Red extends LinearOpMode {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTarget);
                     shooterController.setSpeed(shootSpeed);
+                    commandExtend(extendController.pote_Middle);
                 }else if(gamepad1.a && !prevA && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTargetB);
                     shooterController.setSpeed(shootSpeed);
+                    commandExtend(extendController.pote_Middle);
                 }
 
                 // Xで排出モードを切替。射撃・登坂中は受け付けない。
