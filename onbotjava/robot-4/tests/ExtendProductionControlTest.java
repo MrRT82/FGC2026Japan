@@ -119,7 +119,7 @@ public final class ExtendProductionControlTest {
         near(r.c.kd, .0025, "hold retains down D");
         r.c.extendDown();
         for (int n = 0; n < 240; n++) r.tick(r.c.targetAngle);
-        near(r.c.targetAngle, 1, "down goal unchanged");
+        near(r.c.targetAngle, 20, "down goal unchanged");
 
         r = new Rig();
         r.tick(40);
@@ -166,7 +166,7 @@ public final class ExtendProductionControlTest {
         r.c.integral = .49;
         r.tick(40);
         near(r.c.integral, .5, "positive integral cap");
-        r.c.snapTarget(1);
+        r.c.snapTarget(20);
         r.c.integral = -.49;
         r.tick(40);
         near(r.c.integral, -.5, "negative integral cap");
@@ -235,7 +235,7 @@ public final class ExtendProductionControlTest {
         near(r.c.targetAngle, 34.9375, "yield recovery syncs profile to new actual angle");
         check(Math.abs(r.sent) <= .0375 + 1e-9, "yield recovery starts from zero output");
 
-        for (double invalid : new double[]{Double.NaN, Double.POSITIVE_INFINITY, -6, 91}) {
+        for (double invalid : new double[]{Double.NaN, Double.POSITIVE_INFINITY, -6, 111}) {
             r.cache.setNow(.5);
             r.tick(invalid);
             check(r.c.poteFault && r.sent == 0, "invalid angle bypasses slew");
@@ -243,6 +243,14 @@ public final class ExtendProductionControlTest {
             check(!r.c.poteFault && Double.isFinite(r.sent) && Double.isFinite(r.c.poteVel),
                     "invalid angle cannot poison velocity filter after recovery");
         }
+        r.tick(100);
+        check(!r.c.poteFault && r.c.highAngleRecovery, "90 to 110 deg enters controlled recovery");
+        near(r.sent, -.20, "high-angle recovery uses bounded downward output");
+        r.tick(89);
+        near(r.sent, -.20, "high-angle recovery hysteresis remains active above 88 deg");
+        r.tick(88);
+        check(!r.c.highAngleRecovery && Math.abs(r.sent) <= .0375 + 1e-9,
+                "high-angle recovery exits through zero and restarts bounded slew");
         for (double supply : new double[]{0, -1, Double.NaN, Double.POSITIVE_INFINITY}) {
             r.supply = supply;
             r.tick(40);
@@ -264,7 +272,7 @@ public final class ExtendProductionControlTest {
         r.c.setTarget(200);
         near((Double) get(r.c, "targetGoal"), 88, "upper command bound preserved");
         r.c.setTarget(-200);
-        near((Double) get(r.c, "targetGoal"), -2, "lower command bound preserved");
+        near((Double) get(r.c, "targetGoal"), 20, "lower command bound preserved");
     }
 
     private static void jamReversal() throws Exception {
@@ -291,11 +299,18 @@ public final class ExtendProductionControlTest {
         check(!r.c.isStuck && !r.c.reverse, "returns to PID after reverse timeout");
         near(r.c.targetAngle, 35.0625, "post-jam profile starts from current position");
         near(r.c.targetVelocity, 2.5, "post-jam profile restarts its velocity");
-        near(r.sent, -.45, "post-jam slew uses actual -0.55 output and brake fast at 25 ms");
+        check(r.sent >= 0 && r.sent <= .10 + 1e-9,
+                "post-jam recovery clears reverse output before bounded PIDF restart");
         near(r.c.integral, .0625 * .025, "post-jam integral reset before new error");
         r.c.extendUpNow();
         r.tick(35);
         near(r.c.targetAngle, 35.1875, "repeated goal does not reset recovering profile");
+        r.c.snapTarget(25);
+        set(r.c, "prevStuckCheckMs", System.currentTimeMillis() - 200);
+        set(r.c, "prevStuckAngle", 40.0);
+        set(r.c, "poteStuckStart", System.currentTimeMillis() - 700);
+        r.tick(40);
+        check(!r.c.isStuck, "downward command cannot trigger upward jam reversal");
         r.c.isStuck = true;
         set(r.c, "stuckReverseStart", System.currentTimeMillis());
         r.tick(Double.NaN);

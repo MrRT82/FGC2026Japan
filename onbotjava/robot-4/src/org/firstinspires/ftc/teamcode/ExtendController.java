@@ -1,6 +1,6 @@
 // ============================================================================
 // 最終変更: 2026-10-02 JST
-// 変更内容: 四号機の方向別PIDFと非対称出力スルーを通常Blue/Redへ統合。
+// 変更内容: 展開下限20deg、上昇時限定の詰まり回復、起動時高角度復帰を追加。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -23,7 +23,7 @@ public class ExtendController {
 
     double pote_Middle = 38;
     double pote_Up = 75;
-    double pote_Down = 1;
+    double pote_Down = 20;
     double targetAngle = 75;
     double current;
 
@@ -38,7 +38,7 @@ public class ExtendController {
     double prevError = 0;
     boolean reverse = false;
 
-    private static final double TARGET_MIN_DEG = -2;
+    private static final double TARGET_MIN_DEG = 20;
     private static final double TARGET_MAX_DEG = 88;
 
     // ManualTuneと同じ12.6V基準のduty値。実測電圧による追加補正は行わない。
@@ -133,10 +133,14 @@ public class ExtendController {
         return lastJamMs != 0 && System.currentTimeMillis() - lastJamMs < jamMemoryMs;
     }
 
-    // 校正範囲外のポテンショ値で出力を停止する。
+    // 通常制御範囲より高い起動角度は、低出力で通常範囲へ戻してからPIDFを再開する。
     private static final double POTE_ANGLE_MIN = -5;
     private static final double POTE_ANGLE_MAX = 90;
+    private static final double POTE_RECOVERY_MAX = 110;
+    private static final double POTE_RECOVERY_EXIT = 88;
+    private static final double HIGH_ANGLE_RECOVERY_DUTY = -0.20;
     public boolean poteFault = false;
+    public boolean highAngleRecovery = false;
 
     // 収納側目標で、一定出力なのに1deg未満の動きが1500ms続くと停止保護をラッチする。
     private static final double STALL_DUTY_MIN   = 0.25;
@@ -208,7 +212,7 @@ public class ExtendController {
     }
 
     public void extendUp(){
-        if (!isStuck) setTarget(pote_Up);
+        setTarget(pote_Up);
     }
 
     private void clearFaults(){
@@ -228,6 +232,16 @@ public class ExtendController {
 
         if (Double.isNaN(lastGoalForFault) || Math.abs(dest - lastGoalForFault) > 0.5) {
             clearFaults();
+            // 明示的な新しい上昇指令は、過去の詰まり回復を終了して現在位置から再出発する。
+            if (dest > current + STUCK_ERROR_MIN && (isStuck || reverse)) {
+                isStuck = false;
+                reverse = false;
+                poteStuckStart = 0;
+                stuckReverseStart = 0;
+                profileNeedsSync = true;
+                extendOut.setNow(0.0);
+                output = requestedOutput = 0.0;
+            }
             integral = 0.0;
             prevError = targetAngle - current;
             lastGoalForFault = dest;
@@ -362,12 +376,36 @@ public class ExtendController {
         }
         angle   = current + gravity_offset_angle;
 
-        // 無効値をEMAへ入れず、回復時もNaNを残さない。
-        poteFault = !finite(current) || current < POTE_ANGLE_MIN || current > POTE_ANGLE_MAX;
+        // 非数・断線相当・110deg超は回復方向を保証できないためハード停止する。
+        poteFault = !finite(current) || current < POTE_ANGLE_MIN || current > POTE_RECOVERY_MAX;
         if (poteFault) {
+            highAngleRecovery = false;
             velInitialized = false;
             stopOutput();
             return;
+        }
+
+        // 90～110degで起動した場合はPIDFを使わず、低出力で88degまで下降させる。
+        // ヒステリシスにより90deg付近で通常制御と往復しない。
+        if (current > POTE_ANGLE_MAX || (highAngleRecovery && current > POTE_RECOVERY_EXIT)) {
+            highAngleRecovery = true;
+            velInitialized = false;
+            isStuck = reverse = false;
+            poteStuckStart = stuckReverseStart = 0;
+            ffOut = 0;
+            pidOut = HIGH_ANGLE_RECOVERY_DUTY;
+            requestedOutput = output = HIGH_ANGLE_RECOVERY_DUTY;
+            targetVelocity = profileVelocity = slewLimit = 0;
+            integral = prevError = 0;
+            profileNeedsSync = true;
+            extendOut.setNow(output);
+            return;
+        }
+        if (highAngleRecovery) {
+            highAngleRecovery = false;
+            profileNeedsSync = true;
+            extendOut.setNow(0.0);
+            output = requestedOutput = 0.0;
         }
 
         if (!velInitialized) {
@@ -380,7 +418,7 @@ public class ExtendController {
             prevAngleForVel = current;
         }
 
-        // 詰まり後は従来どおり1000ms、-0.55で逆転。PIDF/スルーは迂回する。
+        // 上昇詰まり後は1000ms、-0.55で下降回復。PIDF/スルーは迂回する。
         if (isStuck) {
             if (System.currentTimeMillis() - stuckReverseStart < REVERSE_TIME_MS) {
                 reverse = true;
@@ -404,6 +442,9 @@ public class ExtendController {
                 prevStuckCheckMs = System.currentTimeMillis();
                 prevStuckAngle   = current;
                 profileNeedsSync = true;
+                // 回復出力を次のPIDFスルーの基準に残さない。
+                extendOut.setNow(0.0);
+                output = requestedOutput = 0.0;
             }
         }
 
@@ -437,15 +478,15 @@ public class ExtendController {
             prevStuckCheckMs = nowMs;
             prevStuckAngle   = current;
         }
-        // 100msごとに移動速度を確認。角度範囲と位置誤差の条件付きで詰まりを検知。
+        // 100msごとに移動速度を確認。下降・下限停止は詰まり回復の対象外。
         if (nowMs - prevStuckCheckMs >= STUCK_CHECK_MS) {
             double elapsed = (nowMs - prevStuckCheckMs) / 1000.0;
             poteRate = Math.abs(current - prevStuckAngle) / elapsed;
 
-            boolean tryingToMove = Math.abs(targetAngle - current) > STUCK_ERROR_MIN;
+            boolean tryingToMoveUp = targetGoal - current > STUCK_ERROR_MIN;
             boolean inRange = STUCK_RANGE_MIN <= current && current <= STUCK_RANGE_MAX;
 
-            if (tryingToMove && inRange && poteRate < STUCK_RATE_DPS) {
+            if (tryingToMoveUp && inRange && poteRate < STUCK_RATE_DPS) {
                 if (poteStuckStart == 0) {
                     poteStuckStart = nowMs;
                 } else if (nowMs - poteStuckStart > STUCK_TIME_MS) {
