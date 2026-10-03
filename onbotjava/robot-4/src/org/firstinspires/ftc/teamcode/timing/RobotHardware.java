@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-02 JST
-// 変更内容: 最新クライム仕様と測距センサー削除を統合。
+// 最終変更: 2026-10-03 JST (UTC+09:00)
+// 変更内容: 最新クライム仕様と測距センサー削除を統合。 クライムローラーをRUN_WITHOUT_ENCODER・BRAKEに設定。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -110,6 +110,10 @@ public class RobotHardware {
         left_shooterMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         right_shooterMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         extendMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        // クライムローラーは全力時に電池電圧をそのままかけるためRUN_WITHOUT_ENCODER。
+        // エンコーダーは停止時のP保持に使う(このモードでも読める)。BRAKEは保持の補助。
+        climbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        climbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // 実機取付：ロゴLEFT、USB BACKWARD。取付変更時は必ず更新する。
         imu.initialize(new IMU.Parameters(
