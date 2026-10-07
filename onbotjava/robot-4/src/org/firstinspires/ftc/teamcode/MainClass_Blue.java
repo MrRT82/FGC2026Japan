@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-03 JST (UTC+09:00)
-// 変更内容: 120秒後の自動クライム上昇を削除。登坂をgamepad1左トリガーのみの新しい流れ(上昇→下降→6秒後ローラー全力→停止P保持/回転)へ変更。 クライム上昇後の登坂モードで自動排出、左トリガー以降は展開を60以下(上昇前に60へ下げる)。
+// 最終変更: 2026-10-07 JST (UTC+09:00)
+// 変更内容: シュート時、展開が中央角へ到達して1秒経過するまで上側角への移動を待つ。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -70,10 +70,14 @@ public class MainClass_Blue extends LinearOpMode {
     boolean climbFrontSide = true;
     // 下降後のローラー出力。表側(登坂基準方位±90°以内)で使い、裏側は符号を反転。Blue: 表 + / 裏 -
     static final double FRONT_ROLLER_POWER = 1.0;
-    // クライムの左トリガー以降は展開を60以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
-    static final double CLIMB_EXTEND_MAX = 60.0;
-    // MainClassが出した展開の最終目標(ExtendControllerの初期目標75と同じ値から始める)。
-    private double extendGoal = 75.0;
+    // クライムの左トリガー以降は展開を35以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
+    static final double CLIMB_EXTEND_MAX = 35.0;
+    // MainClassが出した展開の最終目標(ExtendControllerの初期目標55と同じ値から始める)。
+    private double extendGoal = 55.0;
+    private static final double SHOOT_ALPHA_TOLERANCE_DEG = 3.0;
+    private static final long SHOOT_ALPHA_WAIT_MS = 1000;
+    private long shootAlphaReachedMs = -1;
+    private boolean shootBetaCommanded = false;
     static final double CLIMB_FLIP_OUT  = 110.0;
     static final double CLIMB_FLIP_BACK = 70.0;
 
@@ -268,11 +272,13 @@ public class MainClass_Blue extends LinearOpMode {
                     imuController.setTarget(shootTarget);
                     shooterController.setSpeed(shootSpeed);
                     commandExtend(extendController.pote_Middle);
+                    resetShootExtendDelay();
                 }else if(gamepad1.a && !prevA && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTargetB);
                     shooterController.setSpeed(shootSpeed);
                     commandExtend(extendController.pote_Middle);
+                    resetShootExtendDelay();
                 }
 
                 // Xで排出モードを切替。射撃・登坂中は受け付けない。
@@ -316,6 +322,11 @@ public class MainClass_Blue extends LinearOpMode {
                 }
                 if (mode != RobotMode.SHOOT) {
                     shooterController.setSpeed(standardSpeed);
+                    resetShootExtendDelay();
+                } else if (shootAlphaReachedMs < 0
+                        && Math.abs(extendController.current - extendController.pote_Middle)
+                        <= SHOOT_ALPHA_TOLERANCE_DEG) {
+                    shootAlphaReachedMs = System.currentTimeMillis();
                 }
 
                 // 通常回収だけで詰まりを検出。排出・射撃・キャンセルへ移ると逆転を解除する。
@@ -354,7 +365,12 @@ public class MainClass_Blue extends LinearOpMode {
                 if (transport.feedDirection < 0) feedController.Feed_turn_left();
                 else if (transport.feedDirection > 0) feedController.Feed_turn_right();
                 else feedController.Feed_turn_stop();
-                if (transport.raiseExtend) commandExtend(extendController.pote_Up);
+                boolean shootAlphaWaitDone = shootAlphaReachedMs >= 0
+                        && System.currentTimeMillis() - shootAlphaReachedMs >= SHOOT_ALPHA_WAIT_MS;
+                if (transport.raiseExtend && shootAlphaWaitDone && !shootBetaCommanded) {
+                    commandExtend(extendController.pote_Up);
+                    shootBetaCommanded = true;
+                }
                 shooterController.setFiring(mode == RobotMode.SHOOT
                         && transport.shootPower && transport.feedDirection < 0);
 
@@ -374,7 +390,7 @@ public class MainClass_Blue extends LinearOpMode {
                 climbEnum = climbSequence.update(gamepad1.left_trigger, climbNowMs, extendController.current);
                 climbController.update(climbEnum, climbNowMs, climbSequence.stageElapsedMs(climbNowMs),
                         Angle, climbTarget, FRONT_ROLLER_POWER);
-                // 左トリガー以降は展開の目標を60以下に保つ。上昇前は60へ下げ、61以下で上昇が始まる。
+                // 左トリガー以降は展開の目標を35以下に保つ。上昇前は35へ下げ、36以下で上昇が始まる。
                 if (climbSequence.limitsExtend() && extendGoal > CLIMB_EXTEND_MAX) commandExtend(CLIMB_EXTEND_MAX);
 
                 DriveController.DriveOutput finalOutput;
@@ -640,7 +656,12 @@ public class MainClass_Blue extends LinearOpMode {
         }
     }
 
-    // 展開の指令はすべてここを通す。クライムの左トリガー以降は60で頭打ちにする。
+    private void resetShootExtendDelay() {
+        shootAlphaReachedMs = -1;
+        shootBetaCommanded = false;
+    }
+
+    // 展開の指令はすべてここを通す。クライムの左トリガー以降は35で頭打ちにする。
     private void commandExtend(double deg) {
         if (climbSequence.limitsExtend()) deg = Math.min(deg, CLIMB_EXTEND_MAX);
         extendGoal = deg;
