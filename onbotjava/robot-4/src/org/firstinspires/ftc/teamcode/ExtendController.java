@@ -1,6 +1,7 @@
 // ============================================================================
-// 最終変更: 2026-10-02 JST
-// 変更内容: 展開下限20deg、上昇時限定の詰まり回復、起動時高角度復帰を追加。
+// 最終変更: 2026-10-08 JST
+// 変更内容: 射撃・排出用の低速上昇(通常の1/3)と、LB用の全力下降→直前減速を追加。
+//          詰まり判定の速度閾値を指令速度に合わせて下げる。実機未検証。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -73,9 +74,23 @@ public class ExtendController {
 
     private static final double TARGET_SLEW_DPS      = 25.0;
     private static final double TARGET_SLEW_FAST_DPS = 100.0;
+    // 射撃・排出で上げるときの速さ。通常の1/3。
+    public static final double TARGET_SLEW_SLOW_DPS = TARGET_SLEW_DPS / 3.0;
     private static final double PROFILE_ACCEL_DPS2 = 100.0;
     private double slewRate   = TARGET_SLEW_DPS;
+    private double profileAccel = PROFILE_ACCEL_DPS2;
     private double profileVelocity = 0;
+
+    // LBで下ろすとき: 目標+DROP_ZONE_DEGより上は全力、そこから強めの減速プロファイルで目標に止める。
+    // 下限に多少当たってもよい前提の初期値で、実機では未計測。当たり方を見て調整する。
+    private static final double DROP_DUTY = -1.0;
+    private static final double DROP_ZONE_DEG = 12.0;
+    private static final double DROP_DECEL_DPS2 = 400.0;
+    private static final double DROP_SLEW_PER_20MS = 0.25;
+    private static final long   DROP_MAX_MS = 1500;
+    public boolean dropping = false;
+    private boolean dropSettling = false;
+    private long dropStartMs = 0;
 
     private final ElapsedTime loopTimer = new ElapsedTime();
     private double dtActual = 0.020;
@@ -179,7 +194,11 @@ public class ExtendController {
         setTargetSlew(deg, TARGET_SLEW_FAST_DPS);
     }
 
-    // 最終目標へ指定deg/sで追従する。
+    public void setTargetSlow(double deg){
+        setTargetSlew(deg, TARGET_SLEW_SLOW_DPS);
+    }
+
+    // 最終目標へ指定deg/sで追従する。下降中の全力区間・減速区間は解除する。
     public void setTargetSlew(double deg, double slewDegPerSec){
         if (!finite(deg) || !finite(slewDegPerSec)) {
             throw new IllegalArgumentException("Non-finite extension target/rate");
@@ -187,6 +206,7 @@ public class ExtendController {
         targetGoal  = clampTarget(deg);
         slewRate    = Math.max(1.0, slewDegPerSec);
         slewActive  = true;
+        endDrop();
         commandDestination(targetGoal);
     }
 
@@ -196,7 +216,24 @@ public class ExtendController {
         targetGoal  = targetAngle;
         slewActive  = false;
         profileVelocity = targetVelocity = 0;
+        endDrop();
         commandDestination(targetGoal);
+    }
+
+    // LBで下ろす。目標+DROP_ZONE_DEGより上では全力で下げ、その先は減速して目標で止める。
+    // LBを押している間は毎周期呼ばれるので、同じ行き先へ下降中は状態を保つ。
+    public void dropTo(double deg){
+        if (!finite(deg)) throw new IllegalArgumentException("Non-finite extension target");
+        double goal = clampTarget(deg);
+        if ((dropping || dropSettling) && Math.abs(goal - targetGoal) <= 0.5) return;
+        setTargetSlew(goal, TARGET_SLEW_FAST_DPS);
+        dropping = finite(current) && current > targetGoal + DROP_ZONE_DEG;
+        dropStartMs = System.currentTimeMillis();
+    }
+
+    private void endDrop(){
+        dropping = dropSettling = false;
+        profileAccel = PROFILE_ACCEL_DPS2;
     }
 
     public void extendDown(){
@@ -254,7 +291,7 @@ public class ExtendController {
         if (!slewActive) return;
         double oldTarget = targetAngle;
         double remaining = targetGoal - oldTarget;
-        double maxDelta = PROFILE_ACCEL_DPS2 * dtActual;
+        double maxDelta = profileAccel * dtActual;
         // 毎周期の速度を積分する離散系の停止距離。sqrt(2*a*d)だけでは
         // 最後の周期に減速が間に合わず、目標到達時の速度が急変する。
         double fullSteps = Math.floor((Math.sqrt(1.0
@@ -269,6 +306,7 @@ public class ExtendController {
             targetAngle = targetGoal;
             profileVelocity = 0;
             slewActive = false;
+            endDrop();
         } else {
             // 初期実角度が目標範囲外でも、一度に境界へ飛ばさず範囲内へ戻る。
             double low = Math.min(TARGET_MIN_DEG, oldTarget);
@@ -324,7 +362,10 @@ public class ExtendController {
         double previousSent = extendOut.getLast();
         double delta = desired - previousSent;
         boolean braking = Math.abs(poteVel) >= MOTION_THRESHOLD_DPS && delta * poteVel < 0;
-        slewLimit = (braking ? BRAKE_SLEW_PER_20MS : DRIVE_SLEW_PER_20MS) * dtActual / 0.020;
+        // LBの下降中は全力へ素早く入り、減速区間でも素早く止める。
+        double per20ms = (dropping || dropSettling) ? DROP_SLEW_PER_20MS
+                : braking ? BRAKE_SLEW_PER_20MS : DRIVE_SLEW_PER_20MS;
+        slewLimit = per20ms * dtActual / 0.020;
         return Math.max(previousSent - slewLimit, Math.min(previousSent + slewLimit, desired));
     }
 
@@ -470,6 +511,34 @@ public class ExtendController {
             return;
         }
         if (!targetInitialized || profileNeedsSync) syncProfile();
+
+        if (dropping) {
+            boolean timedOut = System.currentTimeMillis() - dropStartMs > DROP_MAX_MS;
+            if (current > targetGoal + DROP_ZONE_DEG && !timedOut) {
+                // 全力区間: プロファイルとPID/FFを使わず一定の下げ出力。
+                targetAngle = current;
+                targetVelocity = profileVelocity = 0;
+                error = targetGoal - current;
+                ffOut = 0;
+                pidOut = requestedOutput = DROP_DUTY;
+                integral = prevError = 0;
+                pidDirection = -1;
+                output = slewOutput(DROP_DUTY);
+                extendOut.set(output);
+                output = extendOut.getLast();
+                return;
+            }
+            // 減速区間: 今の角度と下降速度から、強めの減速プロファイルで目標へつなぐ。
+            dropping = false;
+            dropSettling = true;
+            targetAngle = current;
+            profileVelocity = Math.max(-TARGET_SLEW_FAST_DPS, Math.min(0.0, poteVel));
+            slewRate = Math.max(TARGET_SLEW_DPS, Math.abs(profileVelocity));
+            profileAccel = DROP_DECEL_DPS2;
+            slewActive = true;
+            integral = 0;
+            prevError = 0;
+        }
         slewTarget();
         selectPidDirection();
 
@@ -485,8 +554,10 @@ public class ExtendController {
 
             boolean tryingToMoveUp = targetGoal - current > STUCK_ERROR_MIN;
             boolean inRange = STUCK_RANGE_MIN <= current && current <= STUCK_RANGE_MAX;
+            // 低速上昇(約8.3deg/s)でも指令速度の半分以上で動いていれば詰まりとしない。
+            double stuckRate = Math.min(STUCK_RATE_DPS, 0.5 * slewRate);
 
-            if (tryingToMoveUp && inRange && poteRate < STUCK_RATE_DPS) {
+            if (tryingToMoveUp && inRange && poteRate < stuckRate) {
                 if (poteStuckStart == 0) {
                     poteStuckStart = nowMs;
                 } else if (nowMs - poteStuckStart > STUCK_TIME_MS) {

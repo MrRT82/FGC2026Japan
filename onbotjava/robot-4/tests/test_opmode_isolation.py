@@ -34,15 +34,26 @@ class OpModeIsolationTest(unittest.TestCase):
             names.extend(re.findall(r'@TeleOp\(name="([^"]+)"', text))
         self.assertCountEqual(names, ['MainClass_Blue', 'MainClass_Red', 'MainClass_Blue_Timing'])
 
-    def test_both_shoot_routes_use_one_shared_extension_angle(self):
+    def test_shoot_routes_leave_extension_then_raise_slowly(self):
+        # 2026-10-08: 射撃開始時の中央角への移動は廃止。送り開始・B/X排出から1秒後に低速で上げ、LBは全力で下ろす。
         controller = (SOURCE / 'ExtendController.java').read_text(encoding='utf-8')
         self.assertEqual(len(re.findall(
             r'\bdouble\s+pote_Middle\s*=\s*[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s*;', controller)), 1)
+        self.assertIn('TARGET_SLEW_SLOW_DPS = TARGET_SLEW_DPS / 3.0', controller)
+        extension_lines = {}
         for name in ('MainClass_Blue.java', 'MainClass_Red.java'):
             text = (SOURCE / name).read_text(encoding='utf-8')
             with self.subTest(path=name):
-                self.assertEqual(text.count('commandExtend(extendController.pote_Middle);'), 2,
-                                 'normal and alternate shooting must share pote_Middle')
+                self.assertNotIn('extendController.pote_Middle', text,
+                                 'shooting must not move the extension to the middle angle')
+                self.assertEqual(text.count('commandExtendSlow(extendController.pote_Up);'), 1)
+                self.assertEqual(text.count('commandExtendDrop(extendController.pote_Down);'), 1)
+                self.assertIn('EXTEND_RAISE_DELAY_MS = 1000', text)
+                self.assertEqual(text.count('resetExtendRaise();'), 3, 'RT, A and session end reset the raise')
+            extension_lines[name] = [line.strip() for line in text.splitlines()
+                                     if re.search(r'commandExtend|extendRaise|EXTEND_RAISE|raiseRequested', line)]
+        self.assertEqual(extension_lines['MainClass_Blue.java'], extension_lines['MainClass_Red.java'],
+                         'Blue and Red must share the same extension sequence')
 
     def test_timing_dependencies_are_isolated(self):
         files = list((SOURCE / 'timing').glob('*.java'))

@@ -319,12 +319,95 @@ public final class ExtendProductionControlTest {
         check(!r.c.isStuck && !r.c.reverse, "explicit stop cancels jam state");
     }
 
+    private static void slowRaiseAndDrop() throws Exception {
+        // 射撃・排出の上昇: 巡航は通常25deg/sの1/3で、目標を越えない。
+        Rig r = new Rig();
+        r.tick(40);
+        r.c.setTargetSlow(75);
+        double peak = 0;
+        for (int n = 0; n < 800 && r.c.targetAngle < 75; n++) {
+            r.tick(r.c.targetAngle);
+            peak = Math.max(peak, r.c.targetVelocity);
+            check(r.c.targetAngle <= 75, "slow raise cannot overshoot");
+        }
+        near(r.c.targetAngle, 75, "slow raise reaches goal");
+        check(Math.abs(peak - 25.0 / 3) < 1e-6, "slow raise cruise is one third of normal: " + peak);
+
+        // 詰まり判定: 低速指令では指令速度の半分(約4.17deg/s)、通常指令では従来の5deg/s。
+        double[][] cases = {{1, 4.5, 0}, {1, 3.0, 1}, {0, 4.5, 1}};
+        for (double[] k : cases) {
+            r = new Rig();
+            r.tick(40);
+            if (k[0] == 1) r.c.setTargetSlow(75); else r.c.setTarget(75);
+            set(r.c, "prevStuckCheckMs", System.currentTimeMillis() - 200);
+            set(r.c, "prevStuckAngle", 40.0 - k[1] * .2);
+            set(r.c, "poteStuckStart", System.currentTimeMillis() - 700);
+            r.tick(40);
+            check(r.c.isStuck == (k[2] == 1), "stuck threshold follows commanded speed: " + k[0] + "/" + k[1]);
+        }
+
+        // LBの下降: 目標+12degより上は全力。出力は1周期0.3125(25ms)ずつ素早く変える。
+        r = new Rig();
+        for (int n = 0; n < 5; n++) r.tick(75);
+        r.c.dropTo(20);
+        check(r.c.dropping, "drop starts above slowdown zone");
+        double prev = r.sent;
+        r.tick(70);
+        near(r.sent, Math.max(-1, prev - .3125), "drop enters full power through fast slew");
+        long start = (Long) get(r.c, "dropStartMs");
+        for (int n = 0; n < 6; n++) { r.c.dropTo(20); r.tick(60); }
+        near(r.sent, -1, "full power drop");
+        check(r.c.dropping && (Long) get(r.c, "dropStartMs") == start, "held LB keeps drop state");
+        near(r.c.targetAngle, 60, "target follows angle during full-power drop");
+        // 減速区間へ入ると、今の下降速度から目標で止まる減速プロファイルへつなぐ。
+        r.seedVelocity(-80, 31);
+        r.tick(31);
+        check(!r.c.dropping && (Boolean) get(r.c, "dropSettling"), "slowdown zone hands over to profile");
+        check(r.c.targetVelocity < 0 && r.c.targetVelocity >= -80 - 1e-9,
+                "handover keeps downward speed without speeding up");
+        near(r.c.slewLimit, .3125, "fast output slew while settling");
+        double last = r.c.targetAngle;
+        for (int n = 0; n < 200 && (Boolean) get(r.c, "dropSettling"); n++) {
+            r.tick(r.c.targetAngle);
+            check(r.c.targetAngle <= last + 1e-9 && r.c.targetAngle >= 20, "settling moves down without overshoot");
+            last = r.c.targetAngle;
+        }
+        near(r.c.targetAngle, 20, "drop ends at goal");
+        check(!(Boolean) get(r.c, "dropSettling"), "settling ends at goal");
+
+        // 全力区間の時間上限、下限付近からのLB、別指令による取消、電力譲渡。
+        r = new Rig();
+        for (int n = 0; n < 5; n++) r.tick(75);
+        r.c.dropTo(20);
+        set(r.c, "dropStartMs", System.currentTimeMillis() - 1600);
+        r.tick(70);
+        check(!r.c.dropping && (Boolean) get(r.c, "dropSettling"), "full-power drop has a time limit");
+        r = new Rig();
+        for (int n = 0; n < 5; n++) r.tick(28);
+        r.c.dropTo(20);
+        check(!r.c.dropping, "inside slowdown zone uses the fast profile only");
+        near((Double) get(r.c, "slewRate"), 100, "LB uses fast profile");
+        r = new Rig();
+        for (int n = 0; n < 5; n++) r.tick(75);
+        r.c.dropTo(20);
+        r.c.setTarget(75);
+        check(!r.c.dropping, "new command cancels drop");
+        r.c.dropTo(20);
+        r.c.yieldCurrent = true;
+        r.tick(70);
+        near(r.sent, 0, "power yield wins over drop");
+        r.c.yieldCurrent = false;
+        r.tick(70);
+        check(r.c.dropping && r.sent < 0, "drop resumes after yield");
+    }
+
     public static void main(String[] args) throws Exception {
         profileAndDirection();
         pidAndFeedforward();
         asymmetricSlew();
         stopsFaultsAndRecovery();
         jamReversal();
+        slowRaiseAndDrop();
         System.out.println("PASS: " + checks + " production extension checks (fake SDK hardware; no physical test)");
     }
 }

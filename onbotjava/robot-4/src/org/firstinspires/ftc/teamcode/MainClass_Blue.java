@@ -1,6 +1,7 @@
 // ============================================================================
-// 最終変更: 2026-10-07 JST (UTC+09:00)
-// 変更内容: クライム時展開上限50degを保持し、シュート時は中央角到達後1秒待って上側角へ移動する。
+// 最終変更: 2026-10-08 JST (UTC+09:00)
+// 変更内容: シュート開始時の中央角への移動を削除。送り開始・B/X排出から1秒待って通常の1/3の速さで上げる。
+//          LBは下限の手前まで全力で下ろす。実機未検証。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -74,10 +75,10 @@ public class MainClass_Blue extends LinearOpMode {
     static final double CLIMB_EXTEND_MAX = 50.0;
     // MainClassが出した展開の最終目標(ExtendControllerの初期目標70と同じ値から始める)。
     private double extendGoal = 70.0;
-    private static final double SHOOT_ALPHA_TOLERANCE_DEG = 3.0;
-    private static final long SHOOT_ALPHA_WAIT_MS = 1000;
-    private long shootAlphaReachedMs = -1;
-    private boolean shootBetaCommanded = false;
+    // 射撃の送り・B/X排出で展開を上げる要求が出てから、この時間待って低速で上げる。
+    private static final long EXTEND_RAISE_DELAY_MS = 1000;
+    private long extendRaiseRequestMs = -1;
+    private boolean extendRaiseDone = false;
     static final double CLIMB_FLIP_OUT  = 110.0;
     static final double CLIMB_FLIP_BACK = 70.0;
 
@@ -258,27 +259,28 @@ public class MainClass_Blue extends LinearOpMode {
                 if (isStopRequested()) break;
                 extendController.extend_loop();
                 if (isStopRequested()) break;
+                // LBは下限付近まで全力で下ろす。手動の上下操作があればその後の自動上昇はしない。
                 if (gamepad1.left_bumper) {
-                    commandExtend(extendController.pote_Down);
+                    commandExtendDrop(extendController.pote_Down);
+                    extendRaiseDone = true;
                 }
 
                 if (gamepad1.y && !prevY) {
                     commandExtend(extendController.pote_Up);
+                    extendRaiseDone = true;
                 }
 
-                // 射撃開始：RTは通常方位、Aは別方位。登坂方位補助中は受け付けない。
+                // 射撃開始：RTは通常方位、Aは別方位。登坂方位補助中は受け付けない。展開はその場のまま。
                 if (gamepad1.right_trigger > 0.1 && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTarget);
                     shooterController.setSpeed(shootSpeed);
-                    commandExtend(extendController.pote_Middle);
-                    resetShootExtendDelay();
+                    resetExtendRaise();
                 }else if(gamepad1.a && !prevA && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTargetB);
                     shooterController.setSpeed(shootSpeed);
-                    commandExtend(extendController.pote_Middle);
-                    resetShootExtendDelay();
+                    resetExtendRaise();
                 }
 
                 // Xで排出モードを切替。射撃・登坂中は受け付けない。
@@ -322,11 +324,10 @@ public class MainClass_Blue extends LinearOpMode {
                 }
                 if (mode != RobotMode.SHOOT) {
                     shooterController.setSpeed(standardSpeed);
-                    resetShootExtendDelay();
-                } else if (shootAlphaReachedMs < 0
-                        && Math.abs(extendController.current - extendController.pote_Middle)
-                        <= SHOOT_ALPHA_TOLERANCE_DEG) {
-                    shootAlphaReachedMs = System.currentTimeMillis();
+                }
+                // 射撃中・B/X排出中だけ上昇の待ち時間を数える。どちらも終われば次回は最初から待つ。
+                if (mode != RobotMode.SHOOT && mode != RobotMode.DISCHARGE && !gamepad1.b) {
+                    resetExtendRaise();
                 }
 
                 // 通常回収だけで詰まりを検出。排出・射撃・キャンセルへ移ると逆転を解除する。
@@ -365,11 +366,16 @@ public class MainClass_Blue extends LinearOpMode {
                 if (transport.feedDirection < 0) feedController.Feed_turn_left();
                 else if (transport.feedDirection > 0) feedController.Feed_turn_right();
                 else feedController.Feed_turn_stop();
-                boolean shootAlphaWaitDone = shootAlphaReachedMs >= 0
-                        && System.currentTimeMillis() - shootAlphaReachedMs >= SHOOT_ALPHA_WAIT_MS;
-                if (transport.raiseExtend && shootAlphaWaitDone && !shootBetaCommanded) {
-                    commandExtend(extendController.pote_Up);
-                    shootBetaCommanded = true;
+                // 射撃の送り開始またはB/X排出で上昇要求。1秒待ってから通常の1/3の速さで上げる。
+                // 登坂中の自動排出では上げない(従来どおり)。
+                boolean raiseRequested = transport.raiseExtend && !climbDischarge;
+                if (raiseRequested && extendRaiseRequestMs < 0) {
+                    extendRaiseRequestMs = System.currentTimeMillis();
+                }
+                if (raiseRequested && !extendRaiseDone && extendRaiseRequestMs >= 0
+                        && System.currentTimeMillis() - extendRaiseRequestMs >= EXTEND_RAISE_DELAY_MS) {
+                    commandExtendSlow(extendController.pote_Up);
+                    extendRaiseDone = true;
                 }
                 shooterController.setFiring(mode == RobotMode.SHOOT
                         && transport.shootPower && transport.feedDirection < 0);
@@ -656,16 +662,30 @@ public class MainClass_Blue extends LinearOpMode {
         }
     }
 
-    private void resetShootExtendDelay() {
-        shootAlphaReachedMs = -1;
-        shootBetaCommanded = false;
+    private void resetExtendRaise() {
+        extendRaiseRequestMs = -1;
+        extendRaiseDone = false;
     }
 
     // 展開の指令はすべてここを通す。クライムの左トリガー以降は50で頭打ちにする。
-    private void commandExtend(double deg) {
+    private double limitExtend(double deg) {
         if (climbSequence.limitsExtend()) deg = Math.min(deg, CLIMB_EXTEND_MAX);
         extendGoal = deg;
-        extendController.setTarget(deg);
+        return deg;
+    }
+
+    private void commandExtend(double deg) {
+        extendController.setTarget(limitExtend(deg));
+    }
+
+    // 射撃・排出で上げるとき。通常の1/3の速さ。
+    private void commandExtendSlow(double deg) {
+        extendController.setTargetSlow(limitExtend(deg));
+    }
+
+    // LBで下ろすとき。下限の手前までは全力。
+    private void commandExtendDrop(double deg) {
+        extendController.dropTo(limitExtend(deg));
     }
 
     // 角度差を-180～180degへ正規化する。
