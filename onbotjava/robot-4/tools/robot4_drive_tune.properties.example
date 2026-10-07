@@ -12,8 +12,9 @@ motor_model=REV_HD_Hex
 gear_reduction=15.15
 # HD Hexモーター軸のエンコーダーは1回転28カウント。
 counts_per_motor_rev=28
-# 車輪の直径[mm]。実測して書き、行頭の#を外す。未記入では動作を有効にできない。
-#wheel_diameter_mm=
+# 車輪の直径[mm]（ユーザー申告90mm）。未記入では動作を有効にできない。
+# 90mm・15.15:1では1カウント0.667mm、出力1.0の指令速度は約1.59m/s（HD Hex種類の最大2800 ticks/s×0.85）。
+wheel_diameter_mm=90
 
 # 出力上限（1.0以下）。最初は0.5までで試し、問題なければ上げる。
 max_power=0.5
