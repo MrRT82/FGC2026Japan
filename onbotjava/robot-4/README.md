@@ -1,5 +1,8 @@
 # 4 号機：OnBot Java
 
+2026-10-07: 足回りギヤ25:1→15:1に合わせIMU旋回ゲインを換算し、足回り計測 `Drive_Tune_R4` を追加。
+換算の根拠・計測手順・未検証事項は [DRIVE_TUNING.md](DRIVE_TUNING.md) を参照。
+
 2026-09-27: 展開専用 `Extend_Tune_R4` とBlue計測版の全機構電源ログを追加。
 手順・停止条件・未配布事項は [EXTEND_TUNING.md](EXTEND_TUNING.md) を参照。
 通常版はユーザー更新1547d2aのまま。計測版の角度・Feed方向も4号機設定へ同期済み。

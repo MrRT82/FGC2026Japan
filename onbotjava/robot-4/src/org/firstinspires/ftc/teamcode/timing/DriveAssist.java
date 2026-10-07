@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-23 15:18:10 JST (UTC+09:00)
-// 変更内容: Blue計測専用パッケージへ隔離。通常Blue/Redの依存クラスとは共有しない。
+// 最終変更: 2026-10-07 JST (UTC+09:00)
+// 変更内容: 足回りギヤ25:1→15:1(速度1.806倍)に合わせ、kpHold/kdHoldを旧値÷1.806へ換算。実機未検証。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode.timing;
@@ -18,10 +18,12 @@ public class DriveAssist {
 
     public long settleTimeoutMs = 400;
 
-    public double kpHold = 0.015;
+    // ギヤ25:1→15:1で出力1あたりの旋回速度が1.806倍。旧値kpHold 0.015、kdHold 0.0020を÷1.806。
+    public double kpHold = 0.00831;
 
-    public double kdHold = 0.0020;
+    public double kdHold = 0.00111;
 
+    // 据え置きのため補正の最大旋回速度は旧ギヤの約1.8倍。旧ギヤと同じにするなら0.194。
     public double holdMaxOut = 0.35;
 
     public double holdDeadbandDeg = 0.5;

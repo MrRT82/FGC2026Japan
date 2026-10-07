@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-09-22 11:20:42 JST (UTC+09:00)
-// 変更内容: 変更日時ヘッダーを追加。直前までの修正内容を保持。
+// 最終変更: 2026-10-07 JST (UTC+09:00)
+// 変更内容: 足回りギヤ25:1→15:1(速度1.806倍)に合わせ、kp/kd/kS/iMaxContribを旧値÷1.806へ換算。実機未検証。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -18,11 +18,14 @@ public class ImuController {
 
     public double imuTurnOutput = 0;
 
-    public double kp = 0.040;
+    // 走行はRUN_USING_ENCODERのため出力は速度指令。ギヤ25:1→15:1(実比27.36→15.15)で
+    // 出力1あたりの旋回速度が1.806倍になるので、出力/角度のゲインは旧値÷1.806で同じ効きにする。
+    // 旧値: kp 0.040、kd 0.0040、kS 0.100。
+    public double kp = 0.0221;
     public double ki = 0.000;
-    public double kd = 0.0040;
+    public double kd = 0.00221;
 
-    public double kS = 0.100;
+    public double kS = 0.0554;
 
     public double kV = 0.000;
 
@@ -43,8 +46,10 @@ public class ImuController {
 
     public double iZone = 10.0;
 
-    public double iMaxContrib = 0.15;
+    // 旧値0.15÷1.806。
+    public double iMaxContrib = 0.0831;
 
+    // 据え置きのため自動旋回の最高速度は旧ギヤの約1.8倍。旧ギヤと同じ上限にするなら0.554。
     public double maxTurnPower = 1.0;
 
     // 0で出力の増加率制限を無効化。減速側の応答は遅らせない。
