@@ -1,6 +1,6 @@
 // ============================================================================
 // 最終変更: 2026-10-07 JST (UTC+09:00)
-// 変更内容: シュート時、展開が中央角へ到達して1秒経過するまで上側角への移動を待つ。
+// 変更内容: クライム時展開上限50degを保持し、シュート時は中央角到達後1秒待って上側角へ移動する。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -70,10 +70,10 @@ public class MainClass_Blue extends LinearOpMode {
     boolean climbFrontSide = true;
     // 下降後のローラー出力。表側(登坂基準方位±90°以内)で使い、裏側は符号を反転。Blue: 表 + / 裏 -
     static final double FRONT_ROLLER_POWER = 1.0;
-    // クライムの左トリガー以降は展開を35以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
-    static final double CLIMB_EXTEND_MAX = 35.0;
-    // MainClassが出した展開の最終目標(ExtendControllerの初期目標55と同じ値から始める)。
-    private double extendGoal = 55.0;
+    // クライムの左トリガー以降は展開を50以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
+    static final double CLIMB_EXTEND_MAX = 50.0;
+    // MainClassが出した展開の最終目標(ExtendControllerの初期目標70と同じ値から始める)。
+    private double extendGoal = 70.0;
     private static final double SHOOT_ALPHA_TOLERANCE_DEG = 3.0;
     private static final long SHOOT_ALPHA_WAIT_MS = 1000;
     private long shootAlphaReachedMs = -1;
@@ -390,7 +390,7 @@ public class MainClass_Blue extends LinearOpMode {
                 climbEnum = climbSequence.update(gamepad1.left_trigger, climbNowMs, extendController.current);
                 climbController.update(climbEnum, climbNowMs, climbSequence.stageElapsedMs(climbNowMs),
                         Angle, climbTarget, FRONT_ROLLER_POWER);
-                // 左トリガー以降は展開の目標を35以下に保つ。上昇前は35へ下げ、36以下で上昇が始まる。
+                // 左トリガー以降は展開の目標を50以下に保つ。上昇前は50へ下げ、51以下で上昇が始まる。
                 if (climbSequence.limitsExtend() && extendGoal > CLIMB_EXTEND_MAX) commandExtend(CLIMB_EXTEND_MAX);
 
                 DriveController.DriveOutput finalOutput;
@@ -661,7 +661,7 @@ public class MainClass_Blue extends LinearOpMode {
         shootBetaCommanded = false;
     }
 
-    // 展開の指令はすべてここを通す。クライムの左トリガー以降は35で頭打ちにする。
+    // 展開の指令はすべてここを通す。クライムの左トリガー以降は50で頭打ちにする。
     private void commandExtend(double deg) {
         if (climbSequence.limitsExtend()) deg = Math.min(deg, CLIMB_EXTEND_MAX);
         extendGoal = deg;
