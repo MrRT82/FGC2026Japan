@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-03 JST (UTC+09:00)
-// 変更内容: 120秒後の自動クライム上昇を削除。登坂をgamepad1左トリガーのみの新しい流れ(上昇→下降→6秒後ローラー全力→停止P保持/回転)へ変更。 クライム上昇後の登坂モードで自動排出、左トリガー以降は展開を60以下(上昇前に60へ下げる)。
+// 最終変更: 2026-10-07 JST (UTC+09:00)
+// 変更内容: 射撃速度1300、クライム90秒ロック、射撃・排出時の展開往復を追加。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -21,6 +21,8 @@ public class MainClass_Red extends LinearOpMode {
     private RobotHardware hardware;
     private DriveController driveController;
     private ShooterController shooterController;
+    // START押下から左トリガーのクライム操作を許可するまでの秒数。
+    private static final double CLIMB_ENABLE_AFTER_START_SEC = 90.0;
     private ClimbController climbController;
     private IntakeController intakeController;
     private RobotLogger logger;
@@ -57,7 +59,7 @@ public class MainClass_Red extends LinearOpMode {
 
 
     // シューター目標はエンコーダのticks/s。standardSpeedは停止ではなく低速逆転。
-    double shootSpeed = 1200;
+    double shootSpeed = 1300;
     double standardSpeed = -100;
     // 各目標方位は開始時のIMUゼロ基準、単位はdeg。Blue/Redは符号が反転する。
     double climbTarget = -16;
@@ -70,10 +72,15 @@ public class MainClass_Red extends LinearOpMode {
     boolean climbFrontSide = true;
     // 下降後のローラー出力。表側(登坂基準方位±90°以内)で使い、裏側は符号を反転。Red: 表 - / 裏 +
     static final double FRONT_ROLLER_POWER = -1.0;
-    // クライムの左トリガー以降は展開を60以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
-    static final double CLIMB_EXTEND_MAX = 60.0;
-    // MainClassが出した展開の最終目標(ExtendControllerの初期目標75と同じ値から始める)。
-    private double extendGoal = 75.0;
+    // クライムの左トリガー以降は展開を50以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
+    static final double CLIMB_EXTEND_MAX = 50.0;
+    // MainClassが出した展開の最終目標(ExtendControllerの初期目標70と同じ値から始める)。
+    private double extendGoal = 70.0;
+    private static final long EXTEND_RAISE_DELAY_MS = 1000;
+    private long extendRaiseRequestMs = -1;
+    private boolean extendRaiseDone = false;
+    private enum ExtendCyclePhase { WAITING, SLOW_UP, DROPPING, NORMAL_UP, DONE }
+    private ExtendCyclePhase extendCyclePhase = ExtendCyclePhase.WAITING;
     static final double CLIMB_FLIP_OUT  = 110.0;
     static final double CLIMB_FLIP_BACK = 70.0;
 
@@ -156,6 +163,7 @@ public class MainClass_Red extends LinearOpMode {
 
         // START後にIMUをゼロ化。本動作はさらに前後スティック入力で開始する。
         waitForStart();
+        final long matchStartMs = System.currentTimeMillis();
 
         long phT0, phT1, phT2, phT3, phT4, phT5;
 
@@ -254,10 +262,12 @@ public class MainClass_Red extends LinearOpMode {
                 if (isStopRequested()) break;
                 if (gamepad1.left_bumper) {
                     commandExtend(extendController.pote_Down);
+                    extendRaiseDone = true;
                 }
 
                 if (gamepad1.y && !prevY) {
                     commandExtend(extendController.pote_Up);
+                    extendRaiseDone = true;
                 }
 
                 // 射撃開始：RTは通常方位、Aは別方位。登坂方位補助中は受け付けない。
@@ -265,12 +275,12 @@ public class MainClass_Red extends LinearOpMode {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTarget);
                     shooterController.setSpeed(shootSpeed);
-                    commandExtend(extendController.pote_Middle);
+                    resetExtendRaise();
                 }else if(gamepad1.a && !prevA && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTargetB);
                     shooterController.setSpeed(shootSpeed);
-                    commandExtend(extendController.pote_Middle);
+                    resetExtendRaise();
                 }
 
                 // Xで排出モードを切替。射撃・登坂中は受け付けない。
@@ -315,6 +325,9 @@ public class MainClass_Red extends LinearOpMode {
                 if (mode != RobotMode.SHOOT) {
                     shooterController.setSpeed(standardSpeed);
                 }
+                if (mode != RobotMode.SHOOT && mode != RobotMode.DISCHARGE && !gamepad1.b) {
+                    resetExtendRaise();
+                }
 
                 // 通常回収だけで詰まりを検出。排出・射撃・キャンセルへ移ると逆転を解除する。
                 // クライム上昇後の登坂モード中(位置合わせ)は自動で排出する。足回りは登坂モードのまま。
@@ -352,7 +365,29 @@ public class MainClass_Red extends LinearOpMode {
                 if (transport.feedDirection < 0) feedController.Feed_turn_left();
                 else if (transport.feedDirection > 0) feedController.Feed_turn_right();
                 else feedController.Feed_turn_stop();
-                if (transport.raiseExtend) commandExtend(extendController.pote_Up);
+                boolean raiseRequested = transport.raiseExtend && !climbDischarge;
+                if (raiseRequested && extendRaiseRequestMs < 0) {
+                    extendRaiseRequestMs = System.currentTimeMillis();
+                }
+                if (raiseRequested && !extendRaiseDone && extendRaiseRequestMs >= 0
+                        && System.currentTimeMillis() - extendRaiseRequestMs >= EXTEND_RAISE_DELAY_MS) {
+                    commandExtendSlow(extendController.pote_Up);
+                    extendRaiseDone = true;
+                    extendCyclePhase = ExtendCyclePhase.SLOW_UP;
+                }
+                if (raiseRequested && extendCyclePhase == ExtendCyclePhase.SLOW_UP
+                        && extendController.current >= CLIMB_EXTEND_MAX) {
+                    commandExtendDrop(extendController.pote_Down);
+                    extendCyclePhase = ExtendCyclePhase.DROPPING;
+                } else if (raiseRequested && extendCyclePhase == ExtendCyclePhase.DROPPING
+                        && !extendController.isDropActive()
+                        && extendController.current <= extendController.pote_Down + 1.5) {
+                    commandExtend(extendController.pote_Up);
+                    extendCyclePhase = ExtendCyclePhase.NORMAL_UP;
+                } else if (raiseRequested && extendCyclePhase == ExtendCyclePhase.NORMAL_UP
+                        && extendController.current >= extendController.pote_Up - 1.5) {
+                    extendCyclePhase = ExtendCyclePhase.DONE;
+                }
                 shooterController.setFiring(mode == RobotMode.SHOOT
                         && transport.shootPower && transport.feedDirection < 0);
 
@@ -369,21 +404,20 @@ public class MainClass_Red extends LinearOpMode {
                 // 登坂はgamepad1の左トリガーだけで進める。
                 // 上昇10.5秒 → 下降7秒(開始6秒後にローラー全力) → 押すごとに停止(P保持)/回転。
                 double climbNowMs = climbTimer.milliseconds();
-                climbEnum = climbSequence.update(gamepad1.left_trigger, climbNowMs, extendController.current);
+                double climbTrigger = (System.currentTimeMillis() - matchStartMs) / 1000.0
+                        >= CLIMB_ENABLE_AFTER_START_SEC ? gamepad1.left_trigger : 0.0;
+                climbEnum = climbSequence.update(climbTrigger, climbNowMs, extendController.current);
                 climbController.update(climbEnum, climbNowMs, climbSequence.stageElapsedMs(climbNowMs),
                         Angle, climbTarget, FRONT_ROLLER_POWER);
-                // 左トリガー以降は展開の目標を60以下に保つ。上昇前は60へ下げ、61以下で上昇が始まる。
+                // 左トリガー以降は展開の目標を50以下に保つ。上昇前は50へ下げ、51以下で上昇が始まる。
                 if (climbSequence.limitsExtend() && extendGoal > CLIMB_EXTEND_MAX) commandExtend(CLIMB_EXTEND_MAX);
 
                 DriveController.DriveOutput finalOutput;
 
-                // 射撃中のRBは角度合わせより優先して走行を止め、他機構への電力を確保する。
-                boolean cutDriveForShot = (mode == RobotMode.SHOOT) && gamepad1.right_bumper;
-
                 // 自動旋回中も手動補助の角速度履歴を更新し、手動復帰時の差分ジャンプを防ぐ。
                 double assistTurnOut = 0.0;
                 boolean assistActive = false;
-                if (imuActive || cutDriveForShot) {
+                if (imuActive) {
                     driveAssist.observe(Angle, driveDt);
                     driveAssist.standby();
                 } else {
@@ -396,10 +430,8 @@ public class MainClass_Red extends LinearOpMode {
                     assistActive = driveAssist.isActive();
                 }
 
-                // 優先順位：発射停止 → 手動前後+IMU → 手動補助 → 通常走行。
-                if (cutDriveForShot) {
-                    finalOutput = new DriveController.DriveOutput(0, 0);
-                } else if (imuActive) {
+                // 優先順位：手動前後+IMU → 手動補助 → 通常走行。
+                if (imuActive) {
                     finalOutput = driveController.driveWithImuCorrection(
                             forwardSlewed,
                             imuTurnOutput
@@ -411,12 +443,6 @@ public class MainClass_Red extends LinearOpMode {
                 } else {
 
                     finalOutput = manualOutput;
-                }
-
-                // 発射停止中は未使用の手動加速制限状態をリセットし、復帰時の出力飛びを防ぐ。
-                if (cutDriveForShot) {
-                    fwdSlew.reset(0.0);
-                    turnSlew.reset(0.0);
                 }
 
                 phM3 = System.nanoTime();
@@ -543,9 +569,9 @@ public class MainClass_Red extends LinearOpMode {
                         + "%  クライム " + (int) climbController.getSkipRate() + "%");
                 telemetry.addData("ログ", logger.isFailed() ? "書き込み失敗"
                         : (logger.getRows() + " 行  " + logger.getPath()));
-                telemetry.addData("ドライブ", cutDriveForShot
-                        ? "停止中（発射のため電流を譲っています）" : "有効");
-                telemetry.addData("前後の制御", cutDriveForShot ? "発射中は停止" : "ドライバー");
+                telemetry.addData("ドライブ", "有効");
+                telemetry.addData("前後の制御", mode == RobotMode.SHOOT
+                        ? "ドライバー前後＋IMU方位補正" : "ドライバー");
                 telemetry.update();
                 }
                 phT5 = System.nanoTime();
@@ -638,11 +664,32 @@ public class MainClass_Red extends LinearOpMode {
         }
     }
 
-    // 展開の指令はすべてここを通す。クライムの左トリガー以降は60で頭打ちにする。
+    // 展開の指令はすべてここを通す。クライムの左トリガー以降は50で頭打ちにする。
     private void commandExtend(double deg) {
         if (climbSequence.limitsExtend()) deg = Math.min(deg, CLIMB_EXTEND_MAX);
         extendGoal = deg;
         extendController.setTarget(deg);
+    }
+
+    private void resetExtendRaise() {
+        if (extendCyclePhase == ExtendCyclePhase.DROPPING) {
+            extendController.setTarget(extendController.current);
+        }
+        extendRaiseRequestMs = -1;
+        extendRaiseDone = false;
+        extendCyclePhase = ExtendCyclePhase.WAITING;
+    }
+
+    private void commandExtendSlow(double deg) {
+        if (climbSequence.limitsExtend()) deg = Math.min(deg, CLIMB_EXTEND_MAX);
+        extendGoal = deg;
+        extendController.setTargetSlow(deg);
+    }
+
+    private void commandExtendDrop(double deg) {
+        if (climbSequence.limitsExtend()) deg = Math.min(deg, CLIMB_EXTEND_MAX);
+        extendGoal = deg;
+        extendController.dropTo(deg);
     }
 
     // 角度差を-180～180degへ正規化する。

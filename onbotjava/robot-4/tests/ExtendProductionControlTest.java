@@ -89,16 +89,16 @@ public final class ExtendProductionControlTest {
             double oldVelocity = r.c.targetVelocity;
             r.c.extendUpNow(); // The main calls this on every firing loop.
             r.tick(old);
-            check(r.c.targetAngle >= old && r.c.targetAngle <= 75, "up profile cannot overshoot");
+            check(r.c.targetAngle >= old && r.c.targetAngle <= 70, "up profile cannot overshoot");
             check(r.c.targetVelocity <= 25 + 1e-9, "up speed limit");
             check(Math.abs(r.c.targetVelocity - oldVelocity) <= 2.5 + 1e-8,
                     "up acceleration/deceleration includes final arrival and hold");
             check(r.c.pidDirection == 1, "up direction retained at hold");
         }
-        near(r.c.targetAngle, 75, "up goal unchanged");
+        near(r.c.targetAngle, 70, "up goal unchanged");
         r.c.extendMiddle();
-        near(r.c.targetAngle, 75, "middle command does not jump target");
-        r.tick(75);
+        near(r.c.targetAngle, 70, "middle command does not jump target");
+        r.tick(70);
         near(r.c.targetVelocity, -2.5, "down acceleration");
         near(r.c.kd, .0025, "down gain");
         for (int n = 0; n < 220; n++) {
@@ -106,26 +106,26 @@ public final class ExtendProductionControlTest {
             double oldVelocity = r.c.targetVelocity;
             r.c.extendMiddle();
             r.tick(old);
-            check(r.c.targetAngle <= old && r.c.targetAngle >= 38, "middle arrival cannot overshoot");
+            check(r.c.targetAngle <= old && r.c.targetAngle >= 35, "middle arrival cannot overshoot");
             check(r.c.targetVelocity >= -25 - 1e-9, "down speed limit");
             check(Math.abs(r.c.targetVelocity - oldVelocity) <= 2.5 + 1e-8,
                     "down acceleration/deceleration includes final arrival and hold");
         }
-        near(r.c.targetAngle, 38, "middle goal unchanged");
-        r.seedVelocity(0, 37);
-        r.tick(37); // Positive hold error must not select the up PID.
+        near(r.c.targetAngle, 35, "middle goal unchanged");
+        r.seedVelocity(0, 34);
+        r.tick(34); // Positive hold error must not select the up PID.
         near(r.c.targetVelocity, 0, "hold target velocity");
         check(r.c.pidDirection == -1, "hold retains last profile direction despite positive error");
         near(r.c.kd, .0025, "hold retains down D");
         r.c.extendDown();
         for (int n = 0; n < 240; n++) r.tick(r.c.targetAngle);
-        near(r.c.targetAngle, 20, "down goal unchanged");
+        near(r.c.targetAngle, 16, "down goal unchanged");
 
         r = new Rig();
         r.tick(40);
         for (int n = 0; n < 15; n++) r.tick(r.c.targetAngle);
         // Explicitly build a moving up profile, then reverse its destination.
-        r.c.setTarget(75);
+        r.c.setTarget(70);
         set(r.c, "targetAngle", 45.0);
         set(r.c, "profileVelocity", 25.0);
         r.c.pidDirection = 1;
@@ -135,6 +135,17 @@ public final class ExtendProductionControlTest {
                 "PID follows decelerating up profile, not new down goal");
         for (int n = 0; n < 12; n++) r.tick(r.c.targetAngle);
         check(r.c.targetVelocity < 0 && r.c.pidDirection == -1, "gain switches after profile reverses");
+
+        r = new Rig();
+        r.tick(40);
+        r.c.setTargetSlow(70);
+        near((Double) get(r.c, "slewRate"), 25.0,
+                "shoot/discharge raise uses normal 25 deg/s slew rate");
+        for (int n = 0; n < 80; n++) {
+            r.tick(r.c.targetAngle);
+            check(r.c.targetVelocity <= ExtendController.TARGET_SLEW_SLOW_DPS + 1e-9,
+                    "slow raise respects its speed limit");
+        }
     }
 
     private static void pidAndFeedforward() throws Exception {
@@ -162,11 +173,11 @@ public final class ExtendProductionControlTest {
                 near(callDouble(r.c, "frictionFF", error), expected, "dynamic/static friction boundary");
             }
         }
-        r.c.snapTarget(75);
+        r.c.snapTarget(70);
         r.c.integral = .49;
         r.tick(40);
         near(r.c.integral, .5, "positive integral cap");
-        r.c.snapTarget(20);
+        r.c.snapTarget(16);
         r.c.integral = -.49;
         r.tick(40);
         near(r.c.integral, -.5, "negative integral cap");
@@ -218,13 +229,8 @@ public final class ExtendProductionControlTest {
         }
         r.tick(40);
         r.c.extendUpNow();
-        r.c.stallFault = true;
-        r.c.extendUpNow();
-        check(r.c.stallFault, "held up command cannot clear stall latch");
-        r.tick(40);
-        near(r.sent, 0, "latched stall bypasses slew");
+        check(!r.c.stallFault, "removed high-angle stall latch stays clear");
         r.c.extendDown();
-        check(!r.c.stallFault, "different destination permits retry");
         r.tick(40);
         r.c.yieldCurrent = true;
         r.tick(39);
@@ -270,19 +276,22 @@ public final class ExtendProductionControlTest {
         try { r.c.setTarget(Double.NaN); } catch (IllegalArgumentException expected) { rejected = true; }
         check(rejected, "non-finite command rejected");
         r.c.setTarget(200);
-        near((Double) get(r.c, "targetGoal"), 88, "upper command bound preserved");
+        near((Double) get(r.c, "targetGoal"), 70, "upper command bound preserved");
         r.c.setTarget(-200);
-        near((Double) get(r.c, "targetGoal"), 20, "lower command bound preserved");
+        near((Double) get(r.c, "targetGoal"), 16, "lower command bound preserved");
     }
 
     private static void jamReversal() throws Exception {
         Rig r = new Rig();
         r.c.extendUpNow();
         r.tick(40);
-        r.c.snapTarget(75);
+        r.c.snapTarget(70);
+        r.tick(40);
+        set(r.c, "targetInitialized", true);
+        set(r.c, "profileNeedsSync", false);
         set(r.c, "prevStuckCheckMs", System.currentTimeMillis() - 200);
         set(r.c, "prevStuckAngle", 40.0);
-        set(r.c, "poteStuckStart", System.currentTimeMillis() - 700);
+        set(r.c, "poteStuckStart", System.currentTimeMillis() - 1400);
         r.tick(40);
         check(r.c.isStuck && r.sent == 0, "existing jam detector first stops");
         r.c.yieldCurrent = true;
@@ -319,12 +328,40 @@ public final class ExtendProductionControlTest {
         check(!r.c.isStuck && !r.c.reverse, "explicit stop cancels jam state");
     }
 
+    private static void automaticDrop() throws Exception {
+        Rig r = new Rig();
+        for (int n = 0; n < 5; n++) r.tick(70);
+        r.c.dropTo(16);
+        check(r.c.isDropActive(), "automatic drop starts above slowdown zone");
+        r.tick(65);
+        near(r.sent, -1.0, "automatic drop uses direct full reverse power");
+        near(r.c.targetAngle, 65, "full-power drop target follows measured angle");
+
+        r.c.yieldCurrent = true;
+        r.tick(60);
+        near(r.sent, 0.0, "power yield overrides automatic drop");
+        r.c.yieldCurrent = false;
+        r.seedVelocity(-80, 27);
+        r.tick(27);
+        check((Boolean) get(r.c, "dropSettling"), "slowdown zone hands off to profile");
+        for (int n = 0; n < 200 && r.c.isDropActive(); n++) r.tick(r.c.targetAngle);
+        near(r.c.targetAngle, 16, "automatic drop settles at lower target");
+        check(!r.c.isDropActive(), "automatic drop finishes before normal raise");
+
+        r = new Rig();
+        for (int n = 0; n < 5; n++) r.tick(70);
+        r.c.dropTo(16);
+        r.c.setTarget(70);
+        check(!r.c.isDropActive(), "new target cancels automatic drop");
+    }
+
     public static void main(String[] args) throws Exception {
         profileAndDirection();
         pidAndFeedforward();
         asymmetricSlew();
         stopsFaultsAndRecovery();
         jamReversal();
+        automaticDrop();
         System.out.println("PASS: " + checks + " production extension checks (fake SDK hardware; no physical test)");
     }
 }

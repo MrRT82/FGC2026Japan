@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-02 JST
-// 変更内容: 展開下限20deg、上昇時限定の詰まり回復、起動時高角度復帰を追加。
+// 最終変更: 2026-10-07 JST
+// 変更内容: 射撃・排出時の高速下降と再上昇に対応。角度と詰まり判定はHub準拠を維持。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -21,10 +21,10 @@ public class ExtendController {
     // ポテンショ換算のオフセットと機構の目標位置。機械変更時は校正する。
     double pote_offset = 0;
 
-    double pote_Middle = 38;
-    double pote_Up = 75;
-    double pote_Down = 20;
-    double targetAngle = 75;
+    double pote_Middle = 35;
+    double pote_Up = 70;
+    double pote_Down = 16;
+    double targetAngle = 70;
     double current;
 
     double integral = 0;
@@ -38,8 +38,8 @@ public class ExtendController {
     double prevError = 0;
     boolean reverse = false;
 
-    private static final double TARGET_MIN_DEG = 20;
-    private static final double TARGET_MAX_DEG = 88;
+    private static final double TARGET_MIN_DEG = 16;
+    private static final double TARGET_MAX_DEG = 70;
 
     // ManualTuneと同じ12.6V基準のduty値。実測電圧による追加補正は行わない。
     public boolean ffEnabled = true;
@@ -73,15 +73,27 @@ public class ExtendController {
 
     private static final double TARGET_SLEW_DPS      = 25.0;
     private static final double TARGET_SLEW_FAST_DPS = 100.0;
+    public static final double TARGET_SLEW_SLOW_DPS = TARGET_SLEW_DPS;
     private static final double PROFILE_ACCEL_DPS2 = 100.0;
     private double slewRate   = TARGET_SLEW_DPS;
+    private double profileAccel = PROFILE_ACCEL_DPS2;
     private double profileVelocity = 0;
+
+    // 自動往復の下降: 下限手前まではsetPower(-1)、以降は強い減速プロファイルで止める。
+    private static final double DROP_DUTY = -1.0;
+    private static final double DROP_ZONE_DEG = 12.0;
+    private static final double DROP_DECEL_DPS2 = 400.0;
+    private static final double DROP_SLEW_PER_20MS = 0.25;
+    private static final long DROP_MAX_MS = 1500;
+    private boolean dropping = false;
+    private boolean dropSettling = false;
+    private long dropStartMs = 0;
 
     private final ElapsedTime loopTimer = new ElapsedTime();
     private double dtActual = 0.020;
     private static final double DT_MIN = 0.002;
     private static final double DT_MAX = 0.100;
-    private double targetGoal = 75;
+    private double targetGoal = 70;
     private boolean slewActive = false;
     private boolean targetInitialized = false;
     private boolean profileNeedsSync = true;
@@ -89,9 +101,9 @@ public class ExtendController {
     private static final double STUCK_RANGE_MIN = 15.0;
     private static final double STUCK_RANGE_MAX = 70.0;
 
-    private static final double STUCK_RATE_DPS  = 5.0;
+    private static final double STUCK_RATE_DPS  = 2.0;
     private static final long   STUCK_CHECK_MS  = 100;
-    private static final long   STUCK_TIME_MS   = 500;
+    private static final long   STUCK_TIME_MS   = 1200;
     private static final long   REVERSE_TIME_MS = 1000;
 
     private static final double REVERSE_DUTY   = 0.55;
@@ -142,17 +154,8 @@ public class ExtendController {
     public boolean poteFault = false;
     public boolean highAngleRecovery = false;
 
-    // 収納側目標で、一定出力なのに1deg未満の動きが1500ms続くと停止保護をラッチする。
-    private static final double STALL_DUTY_MIN   = 0.25;
-    private static final double STALL_MOVE_DEG   = 1.0;
-    private static final long   STALL_TIME_MS    = 1500;
-
-    private static final double STALL_TARGET_MIN_DEG = 50.0;
-    private double stallRefAngle = 0;
-    private long   stallSince    = 0;
+    // CSV・テレメトリ互換用。高角度側の停止ラッチは廃止したため常にfalse。
     public boolean stallFault    = false;
-
-    private double stallStartAngle = 0.0;
 
     public ExtendController(RobotHardware hr){
         extend = hr.extendMotor;
@@ -179,7 +182,11 @@ public class ExtendController {
         setTargetSlew(deg, TARGET_SLEW_FAST_DPS);
     }
 
-    // 最終目標へ指定deg/sで追従する。
+    public void setTargetSlow(double deg){
+        setTargetSlew(deg, TARGET_SLEW_SLOW_DPS);
+    }
+
+    // 最終目標へ指定deg/sで追従する。高速下降中なら解除する。
     public void setTargetSlew(double deg, double slewDegPerSec){
         if (!finite(deg) || !finite(slewDegPerSec)) {
             throw new IllegalArgumentException("Non-finite extension target/rate");
@@ -187,6 +194,7 @@ public class ExtendController {
         targetGoal  = clampTarget(deg);
         slewRate    = Math.max(1.0, slewDegPerSec);
         slewActive  = true;
+        endDrop();
         commandDestination(targetGoal);
     }
 
@@ -196,7 +204,27 @@ public class ExtendController {
         targetGoal  = targetAngle;
         slewActive  = false;
         profileVelocity = targetVelocity = 0;
+        endDrop();
         commandDestination(targetGoal);
+    }
+
+    public void dropTo(double deg){
+        if (!finite(deg)) throw new IllegalArgumentException("Non-finite extension target");
+        double goal = clampTarget(deg);
+        if ((dropping || dropSettling) && Math.abs(goal - targetGoal) <= 0.5) return;
+        setTargetSlew(goal, TARGET_SLEW_FAST_DPS);
+        dropping = finite(current) && current > targetGoal + DROP_ZONE_DEG;
+        dropStartMs = System.currentTimeMillis();
+    }
+
+    public boolean isDropActive(){
+        return dropping || dropSettling;
+    }
+
+    private void endDrop(){
+        dropping = false;
+        dropSettling = false;
+        profileAccel = PROFILE_ACCEL_DPS2;
     }
 
     public void extendDown(){
@@ -217,10 +245,9 @@ public class ExtendController {
 
     private void clearFaults(){
         stallFault = false;
-        stallSince = 0;
     }
 
-    // 右バンパーの押し直しなど、明示的な再試行で停止保護を解除する。
+    // 既存呼出との互換用。停止ラッチ廃止後も安全に呼べる。
     public void clearStallFault(){
         clearFaults();
     }
@@ -254,7 +281,7 @@ public class ExtendController {
         if (!slewActive) return;
         double oldTarget = targetAngle;
         double remaining = targetGoal - oldTarget;
-        double maxDelta = PROFILE_ACCEL_DPS2 * dtActual;
+        double maxDelta = profileAccel * dtActual;
         // 毎周期の速度を積分する離散系の停止距離。sqrt(2*a*d)だけでは
         // 最後の周期に減速が間に合わず、目標到達時の速度が急変する。
         double fullSteps = Math.floor((Math.sqrt(1.0
@@ -269,6 +296,7 @@ public class ExtendController {
             targetAngle = targetGoal;
             profileVelocity = 0;
             slewActive = false;
+            endDrop();
         } else {
             // 初期実角度が目標範囲外でも、一度に境界へ飛ばさず範囲内へ戻る。
             double low = Math.min(TARGET_MIN_DEG, oldTarget);
@@ -290,8 +318,8 @@ public class ExtendController {
         slewActive = targetGoal != targetAngle;
         profileNeedsSync = false;
         targetInitialized = true;
-        stallSince = poteStuckStart = 0;
-        stallRefAngle = stallStartAngle = prevStuckAngle = current;
+        poteStuckStart = 0;
+        prevStuckAngle = current;
         prevStuckCheckMs = System.currentTimeMillis();
     }
 
@@ -324,7 +352,9 @@ public class ExtendController {
         double previousSent = extendOut.getLast();
         double delta = desired - previousSent;
         boolean braking = Math.abs(poteVel) >= MOTION_THRESHOLD_DPS && delta * poteVel < 0;
-        slewLimit = (braking ? BRAKE_SLEW_PER_20MS : DRIVE_SLEW_PER_20MS) * dtActual / 0.020;
+        double per20ms = (dropping || dropSettling) ? DROP_SLEW_PER_20MS
+                : braking ? BRAKE_SLEW_PER_20MS : DRIVE_SLEW_PER_20MS;
+        slewLimit = per20ms * dtActual / 0.020;
         return Math.max(previousSent - slewLimit, Math.min(previousSent + slewLimit, desired));
     }
 
@@ -343,6 +373,7 @@ public class ExtendController {
     // OpMode停止・非常停止/deadmanを持つ呼出元向け。センサーやスルーを介さず0。
     public void stop(){
         stopOutput();
+        endDrop();
         isStuck = reverse = false;
         poteStuckStart = 0;
     }
@@ -458,16 +489,34 @@ public class ExtendController {
             prevStuckCheckMs = System.currentTimeMillis();
             prevStuckAngle   = current;
             prevPoteValue    = current;
-            stallSince       = 0;
-            stallRefAngle    = current;
-            stallStartAngle  = current;
             return;
         }
 
-        // 停止ラッチ中はプロファイルを進めず、0出力を維持する。
-        if (stallFault) {
-            stopOutput();
-            return;
+        if (dropping) {
+            boolean timedOut = System.currentTimeMillis() - dropStartMs > DROP_MAX_MS;
+            if (current > targetGoal + DROP_ZONE_DEG && !timedOut) {
+                targetAngle = current;
+                targetVelocity = profileVelocity = 0;
+                error = targetGoal - current;
+                ffOut = 0;
+                pidOut = requestedOutput = DROP_DUTY;
+                integral = prevError = 0;
+                pidDirection = -1;
+                output = DROP_DUTY;
+                slewLimit = 1.0;
+                extendOut.setNow(DROP_DUTY);
+                output = extendOut.getLast();
+                return;
+            }
+            dropping = false;
+            dropSettling = true;
+            targetAngle = current;
+            profileVelocity = Math.max(-TARGET_SLEW_FAST_DPS, Math.min(0.0, poteVel));
+            slewRate = Math.max(TARGET_SLEW_DPS, Math.abs(profileVelocity));
+            profileAccel = DROP_DECEL_DPS2;
+            slewActive = true;
+            integral = 0;
+            prevError = 0;
         }
         if (!targetInitialized || profileNeedsSync) syncProfile();
         slewTarget();
@@ -506,34 +555,6 @@ public class ExtendController {
             prevStuckCheckMs = nowMs;
             prevStuckAngle   = current;
             prevPoteValue    = current;
-        }
-
-        if (Math.abs(current - stallRefAngle) > STALL_MOVE_DEG) {
-            stallRefAngle = current;
-            stallSince    = 0;
-        }
-
-        if (targetAngle >= STALL_TARGET_MIN_DEG) {
-            if (Math.abs(output) >= STALL_DUTY_MIN) {
-                if (stallSince == 0) {
-                    stallSince = System.currentTimeMillis();
-                    stallStartAngle = current;
-                } else if (Math.abs(current - stallStartAngle) >= STALL_MOVE_DEG) {
-                    stallSince = System.currentTimeMillis();
-                    stallStartAngle = current;
-                } else if (System.currentTimeMillis() - stallSince > STALL_TIME_MS) {
-                    stallFault = true;
-                    lastJamMs = System.currentTimeMillis();
-                }
-            } else {
-                stallSince = 0;
-            }
-            if (stallFault) {
-                stopOutput();
-                return;
-            }
-        } else {
-            stallSince = 0;
         }
 
         error = targetAngle - current;
