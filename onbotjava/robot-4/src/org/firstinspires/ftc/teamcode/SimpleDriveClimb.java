@@ -15,7 +15,7 @@ public class SimpleDriveClimb extends LinearOpMode {
     static final String CLIMB_NAME = "climb";
 
     // Starting values only: motor speed, load, gearing and polarity are unverified.
-    static final double DRIVE_MAX_TICKS_PER_SEC = 1000.0;
+    static final double DRIVE_MAX_TICKS_PER_SEC = 1800.0;
     static final double CLIMB_POWER = 0.30;
     static final double HOLD_KP = 0.005; // Same as Robot 4 ClimbController.ROLLER_KP (power/tick)
     static final double TRIGGER_THRESHOLD = 0.20;
