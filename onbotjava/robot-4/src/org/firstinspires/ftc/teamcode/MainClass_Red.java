@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-07 JST (UTC+09:00)
-// 変更内容: 射撃速度1300、クライム90秒ロック、射撃・排出時の展開往復を追加。
+// 最終変更: 2026-10-10 JST (UTC+09:00)
+// 変更内容: A射撃は250ms長押し、射撃位置合わせ開始時はインテイクだけを800ms逆転。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -32,7 +32,6 @@ public class MainClass_Red extends LinearOpMode {
     private DriveAssist driveAssist;
     private Discharge discharge;
 
-    boolean prevA = false;
     boolean prevGamepad2DpadUp = false;
     boolean prevGamepad2DpadDown = false;
     boolean prevX = false;
@@ -45,6 +44,11 @@ public class MainClass_Red extends LinearOpMode {
     private enum RobotMode { MANUAL, SHOOT, CLIMB, DISCHARGE }
     private RobotMode mode = RobotMode.MANUAL;
     boolean wasShoot = false;
+    private static final long SHOOT_INTAKE_REVERSE_NS = 800_000_000L;
+    private long shootIntakeReverseUntilNs = Long.MIN_VALUE;
+    private static final long ALT_SHOOT_HOLD_NS = 250_000_000L;
+    private long altShootHoldStartNs = Long.MIN_VALUE;
+    private boolean altShootHoldConsumed = false;
     int climbEnum = 0;
     private final ClimbSequence climbSequence = new ClimbSequence();
     boolean timerRunning = false;
@@ -72,10 +76,10 @@ public class MainClass_Red extends LinearOpMode {
     boolean climbFrontSide = true;
     // 下降後のローラー出力。表側(登坂基準方位±90°以内)で使い、裏側は符号を反転。Red: 表 - / 裏 +
     static final double FRONT_ROLLER_POWER = -1.0;
-    // クライムの左トリガー以降は展開を50以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
-    static final double CLIMB_EXTEND_MAX = 50.0;
-    // MainClassが出した展開の最終目標(ExtendControllerの初期目標70と同じ値から始める)。
-    private double extendGoal = 70.0;
+    // クライムの左トリガー以降は展開を4以下に保つ(上昇したクライムとの干渉防止)。普段は従来どおり。
+    static final double CLIMB_EXTEND_MAX = 4.0;
+    // MainClassが出した展開の最終目標(ExtendControllerの初期目標24と同じ値から始める)。
+    private double extendGoal = 24.0;
     private static final long EXTEND_RAISE_DELAY_MS = 1000;
     private long extendRaiseRequestMs = -1;
     private boolean extendRaiseDone = false;
@@ -270,17 +274,22 @@ public class MainClass_Red extends LinearOpMode {
                     extendRaiseDone = true;
                 }
 
-                // 射撃開始：RTは通常方位、Aは別方位。登坂方位補助中は受け付けない。
+                boolean alternateShootRequested = updateAlternateShootHold(
+                        gamepad1.a, System.nanoTime());
+
+                // 射撃開始：RTは通常方位、Aの250ms長押しは別方位。登坂方位補助中は受け付けない。
                 if (gamepad1.right_trigger > 0.1 && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTarget);
                     shooterController.setSpeed(shootSpeed);
                     resetExtendRaise();
-                }else if(gamepad1.a && !prevA && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
+                    shootIntakeReverseUntilNs = System.nanoTime() + SHOOT_INTAKE_REVERSE_NS;
+                }else if(alternateShootRequested && (mode != RobotMode.SHOOT) && (mode != RobotMode.CLIMB)) {
                     mode = RobotMode.SHOOT;
                     imuController.setTarget(shootTargetB);
                     shooterController.setSpeed(shootSpeed);
                     resetExtendRaise();
+                    shootIntakeReverseUntilNs = System.nanoTime() + SHOOT_INTAKE_REVERSE_NS;
                 }
 
                 // Xで排出モードを切替。射撃・登坂中は受け付けない。
@@ -359,7 +368,10 @@ public class MainClass_Red extends LinearOpMode {
                         shooterController.isFeedReady(), isReverse);
                 feedController.setShootMode(transport.shootPower);
                 intakeController.setShootMode(transport.shootPower);
-                if (transport.intakeDirection < 0) intakeController.Intake_Reverse();
+                boolean shootIntakeReverse = mode == RobotMode.SHOOT
+                        && System.nanoTime() < shootIntakeReverseUntilNs;
+                if (shootIntakeReverse) intakeController.Intake_Reverse();
+                else if (transport.intakeDirection < 0) intakeController.Intake_Reverse();
                 else if (transport.intakeDirection > 0) intakeController.Intake_Forward();
                 else intakeController.Intake_Stop();
                 if (transport.feedDirection < 0) feedController.Feed_turn_left();
@@ -409,7 +421,7 @@ public class MainClass_Red extends LinearOpMode {
                 climbEnum = climbSequence.update(climbTrigger, climbNowMs, extendController.current);
                 climbController.update(climbEnum, climbNowMs, climbSequence.stageElapsedMs(climbNowMs),
                         Angle, climbTarget, FRONT_ROLLER_POWER);
-                // 左トリガー以降は展開の目標を50以下に保つ。上昇前は50へ下げ、51以下で上昇が始まる。
+                // 左トリガー以降は展開の目標を4以下に保つ。上昇前は4へ下げ、5以下で上昇が始まる。
                 if (climbSequence.limitsExtend() && extendGoal > CLIMB_EXTEND_MAX) commandExtend(CLIMB_EXTEND_MAX);
 
                 DriveController.DriveOutput finalOutput;
@@ -597,8 +609,6 @@ public class MainClass_Red extends LinearOpMode {
                         finalOutput.leftPower, finalOutput.rightPower,
                         (mode == RobotMode.SHOOT), (mode == RobotMode.CLIMB), (mode == RobotMode.DISCHARGE), climbEnum);
 
-                prevA = gamepad1.a;
-
             } else {
                 telemetry.addData("展開出力",extendController.output);
                 telemetry.addData("展開モーター出力", extendController.extend.getPower());
@@ -656,6 +666,22 @@ public class MainClass_Red extends LinearOpMode {
         }
     }
 
+    private boolean updateAlternateShootHold(boolean pressed, long nowNs) {
+        if (!pressed) {
+            altShootHoldStartNs = Long.MIN_VALUE;
+            altShootHoldConsumed = false;
+            return false;
+        }
+        if (altShootHoldConsumed) return false;
+        if (altShootHoldStartNs == Long.MIN_VALUE) {
+            altShootHoldStartNs = nowNs;
+            return false;
+        }
+        if (nowNs - altShootHoldStartNs < ALT_SHOOT_HOLD_NS) return false;
+        altShootHoldConsumed = true;
+        return true;
+    }
+
     // 目標速度の変更に送り閾値を追従させる。非射撃中は待機速度を維持する。
     private void applyShootSpeed() {
         shooterController.setFeedGateForTarget(shootSpeed);
@@ -664,7 +690,7 @@ public class MainClass_Red extends LinearOpMode {
         }
     }
 
-    // 展開の指令はすべてここを通す。クライムの左トリガー以降は50で頭打ちにする。
+    // 展開の指令はすべてここを通す。クライムの左トリガー以降は4で頭打ちにする。
     private void commandExtend(double deg) {
         if (climbSequence.limitsExtend()) deg = Math.min(deg, CLIMB_EXTEND_MAX);
         extendGoal = deg;

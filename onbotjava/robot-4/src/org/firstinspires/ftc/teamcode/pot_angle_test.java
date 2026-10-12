@@ -13,11 +13,11 @@ public class pot_angle_test extends LinearOpMode {
 
     // ExtendControllerと同じ値。
     private static final double POT_FULL_SCALE_DEG = 135.0;   // 最大電圧のときの角度
-    private static final double POTE_OFFSET = 0;              // ExtendController.pote_offset
-    private static final double GRAVITY_OFFSET_ANGLE = -20.0; // ExtendController.gravity_offset_angle
-    private static final double POTE_ANGLE_MIN = -5;          // これ未満はセンサー異常で停止
-    private static final double POTE_ANGLE_MAX = 90;          // これを超えると回復動作
-    private static final double POTE_RECOVERY_MAX = 110;      // これを超えるとセンサー異常で停止
+    private static final double POTE_OFFSET = 33;             // ExtendController.pote_offset
+    private static final double GRAVITY_OFFSET_ANGLE = 13.0;  // ExtendController.gravity_offset_angle
+    private static final double POTE_ANGLE_MIN = -38;         // これ未満はセンサー異常で停止
+    private static final double POTE_ANGLE_MAX = 57;          // これを超えると回復動作
+    private static final double POTE_RECOVERY_MAX = 77;       // これを超えるとセンサー異常で停止
 
     @Override
     public void runOpMode() {

@@ -1,21 +1,21 @@
 // ============================================================================
-// 最終変更: 2026-10-07 JST (UTC+09:00)
-// 変更内容: クライム時の展開目標50degに合わせ、上昇開始判定を51deg以下へ変更。
+// 最終変更: 2026-10-10 JST (UTC+09:00)
+// 変更内容: 最下点-30degの目標群に合わせ、クライム上昇開始判定を5deg以下へ変更。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
 
 // 登坂段階。gamepad1の左トリガーだけで進める。
-//   待機 →(押す)→ 展開を50へ下げ、EXTEND_READY_DEG以下になったら → 上昇(UP_MS)
+//   待機 →(押す)→ 展開を4へ下げ、EXTEND_READY_DEG以下になったら → 上昇(UP_MS)
 //   →(上昇後に押す)→ 下降(DOWN_MS)。下降開始からROLLER_DELAY_MSで ローラーが全力で回り始める →(回り始めた後に押す)→ 停止(P保持) →(押す)→ 回転 →(押す)→ 停止 …
 // 展開を下げている間、上昇中、下降開始からローラーが回り始めるまでは、押しても無視する。
-// 押した後(LOWER以降)は展開を50以下に保つ(limitsExtend)。上昇開始後(hasRisen)は登坂モード中に自動排出する。
+// 押した後(LOWER以降)は展開を4以下に保つ(limitsExtend)。上昇開始後(hasRisen)は登坂モード中に自動排出する。
 // 出力はClimbControllerが段階と経過時間から決める。
 public final class ClimbSequence {
     public static final int WAIT = 0, UP = 1, DOWN = 2, ROLL = 3, HOLD = 4, LOWER = 5;
     public static final long UP_MS = 10_500, DOWN_MS = 7_000, ROLLER_DELAY_MS = 6_000;
-    // 展開をこの角度以下にしてから上昇を始める(目標は50、制御が50付近で止まっても進めるよう1°の余裕)。
-    public static final double EXTEND_READY_DEG = 51.0;
+    // 展開をこの角度以下にしてから上昇を始める(目標は4、制御が4付近で止まっても進めるよう1°の余裕)。
+    public static final double EXTEND_READY_DEG = 5.0;
     private int stage = WAIT;
     private boolean held;
     private double stageStartMs = 0.0;
@@ -39,7 +39,7 @@ public final class ClimbSequence {
         return stage;
     }
 
-    // 左トリガーを押した後は、展開を50以下に保つ。
+    // 左トリガーを押した後は、展開を4以下に保つ。
     public boolean limitsExtend() { return stage != WAIT; }
     // 上昇を始めた後(展開を下げている間は含まない)。
     public boolean hasRisen() { return stage != WAIT && stage != LOWER; }

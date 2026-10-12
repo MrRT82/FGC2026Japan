@@ -63,26 +63,26 @@ public final class NoDistanceHardwareTest {
         check(map.outputs.get("rightLock") == 0.5 && map.outputs.get("leftLock") == 0.5,
                 "Continuous rotation locks must initialize stopped");
         ClimbSequence sequence = new ClimbSequence();
-        check(sequence.update(1, 0, 75) == ClimbSequence.LOWER && sequence.limitsExtend() && !sequence.hasRisen(),
+        check(sequence.update(1, 0, 20) == ClimbSequence.LOWER && sequence.limitsExtend() && !sequence.hasRisen(),
                 "gp1 left trigger first lowers the extension; rise waits");
-        check(sequence.update(0, 400, 65) == ClimbSequence.LOWER, "Rise waits while the extension is above 61");
-        check(sequence.update(1, 800, 62) == ClimbSequence.LOWER, "Press while lowering is ignored");
-        sequence.update(0, 900, 61.5);
-        check(sequence.update(0, 1000, 60.8) == ClimbSequence.UP && sequence.hasRisen(),
-                "Rise starts once the extension is at or below 61");
-        check(sequence.update(1, 5000, 60) == ClimbSequence.UP, "Press during the rise is ignored");
-        sequence.update(0, 5100, 60);
-        check(sequence.update(1, 11_600, 60) == ClimbSequence.DOWN, "Press after the rise starts descent");
-        sequence.update(0, 11_700, 60);
-        check(sequence.update(1, 17_000, 60) == ClimbSequence.DOWN, "Press before the roller starts is ignored");
-        sequence.update(0, 17_100, 60);
-        check(sequence.update(1, 17_700, 60) == ClimbSequence.HOLD, "Press after the roller starts stops and holds");
-        sequence.update(0, 17_800, 60);
-        check(sequence.update(1, 18_200, 60) == ClimbSequence.ROLL, "Next press spins the roller again");
-        sequence.update(0, 18_300, 60);
-        check(sequence.update(1, 18_700, 60) == ClimbSequence.HOLD, "Presses keep alternating");
+        check(sequence.update(0, 400, 8) == ClimbSequence.LOWER, "Rise waits while the extension is above 5");
+        check(sequence.update(1, 800, 6) == ClimbSequence.LOWER, "Press while lowering is ignored");
+        sequence.update(0, 900, 5.5);
+        check(sequence.update(0, 1000, 4.8) == ClimbSequence.UP && sequence.hasRisen(),
+                "Rise starts once the extension is at or below 5");
+        check(sequence.update(1, 5000, 4) == ClimbSequence.UP, "Press during the rise is ignored");
+        sequence.update(0, 5100, 4);
+        check(sequence.update(1, 11_600, 4) == ClimbSequence.DOWN, "Press after the rise starts descent");
+        sequence.update(0, 11_700, 4);
+        check(sequence.update(1, 17_000, 4) == ClimbSequence.DOWN, "Press before the roller starts is ignored");
+        sequence.update(0, 17_100, 4);
+        check(sequence.update(1, 17_700, 4) == ClimbSequence.HOLD, "Press after the roller starts stops and holds");
+        sequence.update(0, 17_800, 4);
+        check(sequence.update(1, 18_200, 4) == ClimbSequence.ROLL, "Next press spins the roller again");
+        sequence.update(0, 18_300, 4);
+        check(sequence.update(1, 18_700, 4) == ClimbSequence.HOLD, "Presses keep alternating");
         ClimbSequence low = new ClimbSequence();
-        check(low.update(1, 0, 20) == ClimbSequence.UP, "Extension already low: rise starts at once");
+        check(low.update(1, 0, 4) == ClimbSequence.UP, "Extension already low: rise starts at once");
         ClimbSequence noPot = new ClimbSequence();
         check(noPot.update(1, 0, Double.NaN) == ClimbSequence.LOWER, "Unreadable extension angle does not start the rise");        ClimbController climb = new ClimbController(hw);
         climb.update(ClimbSequence.LOWER, 0, 0, 16, 16, 1.0);
@@ -95,9 +95,11 @@ public final class NoDistanceHardwareTest {
         check(map.outputs.get("rightLock") == 0.5, "Rise stops after UP_MS");
         climb.update(ClimbSequence.DOWN, 20_000, 0, 16, 16, 1.0);
         check(map.outputs.get("rightInside") == 0.0 && map.outputs.get("rightLock") == 0.0
-                && map.outputs.get("climb") == 0.0, "Descent turns climb servos and locks; roller waits");
+                && map.outputs.get("climb") == 0.0 && climb.isHolding(),
+                "Descent turns climb servos and locks; roller holds its entry position");
         climb.update(ClimbSequence.DOWN, 26_000, 6_000, 16, 16, 1.0);
-        check(map.outputs.get("climb") == 1.0 && map.outputs.get("rightInside") == 0.0,
+        check(map.outputs.get("climb") == 1.0 && !climb.isHolding()
+                        && map.outputs.get("rightInside") == 0.0,
                 "Roller runs at full power 6 s after the descent press while still descending");
         climb.update(ClimbSequence.HOLD, 26_500, 0, 16, 16, 1.0);
         check(map.outputs.get("climb") == 0.0 && climb.isHolding() && map.outputs.get("rightInside") == 0.0,

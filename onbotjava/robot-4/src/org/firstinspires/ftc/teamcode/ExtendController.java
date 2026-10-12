@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-07 JST
-// 変更内容: 射撃・排出時の高速下降と再上昇に対応。角度と詰まり判定はHub準拠を維持。
+// 最終変更: 2026-10-10 JST
+// 変更内容: 実測の最下点-30degに合わせ、展開目標角度を統一。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -19,12 +19,12 @@ public class ExtendController {
     public AnalogInput pote;
 
     // ポテンショ換算のオフセットと機構の目標位置。機械変更時は校正する。
-    double pote_offset = 0;
+    double pote_offset = 33;
 
-    double pote_Middle = 35;
-    double pote_Up = 70;
-    double pote_Down = 16;
-    double targetAngle = 70;
+    double pote_Middle = -11;
+    double pote_Up = 24;
+    double pote_Down = -30;
+    double targetAngle = 24;
     double current;
 
     double integral = 0;
@@ -38,8 +38,8 @@ public class ExtendController {
     double prevError = 0;
     boolean reverse = false;
 
-    private static final double TARGET_MIN_DEG = 16;
-    private static final double TARGET_MAX_DEG = 70;
+    private static final double TARGET_MIN_DEG = -30;
+    private static final double TARGET_MAX_DEG = 24;
 
     // ManualTuneと同じ12.6V基準のduty値。実測電圧による追加補正は行わない。
     public boolean ffEnabled = true;
@@ -60,8 +60,8 @@ public class ExtendController {
 
     private static final double VEL_ALPHA = 0.35;
 
-    // Robot 4 survey: raw sensor angle 20 deg is physical horizontal (gravity angle 0 deg).
-    private final double gravity_offset_angle = -20.0;
+    // 旧座標20deg＝新座標-13degが物理水平(gravity angle 0deg)。
+    private final double gravity_offset_angle = 13.0;
     private double angle = 0;
 
     public double ffOut = 0;
@@ -98,8 +98,8 @@ public class ExtendController {
     private boolean targetInitialized = false;
     private boolean profileNeedsSync = true;
 
-    private static final double STUCK_RANGE_MIN = 15.0;
-    private static final double STUCK_RANGE_MAX = 70.0;
+    private static final double STUCK_RANGE_MIN = -31.0;
+    private static final double STUCK_RANGE_MAX = 24.0;
 
     private static final double STUCK_RATE_DPS  = 2.0;
     private static final long   STUCK_CHECK_MS  = 100;
@@ -146,10 +146,10 @@ public class ExtendController {
     }
 
     // 通常制御範囲より高い起動角度は、低出力で通常範囲へ戻してからPIDFを再開する。
-    private static final double POTE_ANGLE_MIN = -5;
-    private static final double POTE_ANGLE_MAX = 90;
-    private static final double POTE_RECOVERY_MAX = 110;
-    private static final double POTE_RECOVERY_EXIT = 88;
+    private static final double POTE_ANGLE_MIN = -38;
+    private static final double POTE_ANGLE_MAX = 57;
+    private static final double POTE_RECOVERY_MAX = 77;
+    private static final double POTE_RECOVERY_EXIT = 55;
     private static final double HIGH_ANGLE_RECOVERY_DUTY = -0.20;
     public boolean poteFault = false;
     public boolean highAngleRecovery = false;
@@ -407,7 +407,7 @@ public class ExtendController {
         }
         angle   = current + gravity_offset_angle;
 
-        // 非数・断線相当・110deg超は回復方向を保証できないためハード停止する。
+        // 非数・断線相当・新座標77deg超は回復方向を保証できないためハード停止する。
         poteFault = !finite(current) || current < POTE_ANGLE_MIN || current > POTE_RECOVERY_MAX;
         if (poteFault) {
             highAngleRecovery = false;
@@ -416,8 +416,8 @@ public class ExtendController {
             return;
         }
 
-        // 90～110degで起動した場合はPIDFを使わず、低出力で88degまで下降させる。
-        // ヒステリシスにより90deg付近で通常制御と往復しない。
+        // 新座標57～77degで起動した場合はPIDFを使わず、低出力で55degまで下降させる。
+        // ヒステリシスにより57deg付近で通常制御と往復しない。
         if (current > POTE_ANGLE_MAX || (highAngleRecovery && current > POTE_RECOVERY_EXIT)) {
             highAngleRecovery = true;
             velInitialized = false;

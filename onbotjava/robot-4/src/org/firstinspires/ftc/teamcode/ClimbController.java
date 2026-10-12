@@ -1,6 +1,6 @@
 // ============================================================================
-// 最終変更: 2026-10-03 JST (UTC+09:00)
-// 変更内容: 上昇10.5秒(ロックのみ)→下降7秒(登坂とロック)→下降開始6秒後にローラー全力→押すごとに停止(P保持)/回転。
+// 最終変更: 2026-10-10 JST (UTC+09:00)
+// 変更内容: 下降開始から6秒間はローラー位置をP保持し、その後に全力回転。
 // 今後このファイルを変更した際は、上記の日時と変更内容も更新する。
 // ============================================================================
 package org.firstinspires.ftc.teamcode;
@@ -102,7 +102,9 @@ public class ClimbController {
             }
             holding = false;
             rollerCmd = rollerFullPower;
-        } else if (stage == ClimbSequence.HOLD) {
+        } else if (stage == ClimbSequence.HOLD
+                || (stage == ClimbSequence.DOWN
+                && stageElapsedMs < ClimbSequence.ROLLER_DELAY_MS)) {
             if (!holding) { holding = true; holdTarget = rollerPosition; }
             rollerCmd = Math.max(-ROLLER_HOLD_MAX,
                     Math.min(ROLLER_HOLD_MAX, ROLLER_KP * (holdTarget - rollerPosition)));
